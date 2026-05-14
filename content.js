@@ -21,6 +21,37 @@
   const PAGE_BRIDGE_GALLERY_RESPONSE = "matrix-gallery-sender-gallery-response";
   const PAGE_BRIDGE_MEDIA_REQUEST = "matrix-gallery-sender-media-request";
   const PAGE_BRIDGE_MEDIA_RESPONSE = "matrix-gallery-sender-media-response";
+  const CHAT_MESSAGE_SELECTOR = "[data-event-id], .mx_EventTile";
+  const MESSAGE_IMAGE_BODY_SELECTOR = [
+    ".mx_MImageBody",
+    ".mx_MVideoBody",
+    ".mx_MStickerBody",
+    ".mx_ImageBody",
+    ".mx_EventTile_body",
+    ".mx_EventTile_content",
+    ".mx_EventTile_line"
+  ].join(", ");
+  const NON_CHAT_IMAGE_SELECTOR = [
+    "#mg-panel",
+    "#mg-toggle",
+    ".mg-lightbox",
+    ".mx_BaseAvatar",
+    ".mx_DecoratedRoomAvatar",
+    ".mx_EventTile_avatar",
+    ".mx_RoomAvatar",
+    ".mx_RoomTile_avatar",
+    ".mx_SpacePanel",
+    ".mx_SpaceButton",
+    ".mx_LeftPanel",
+    ".mx_RoomList",
+    ".mx_ContextualMenu",
+    ".mx_UserMenu",
+    ".mx_RightPanel",
+    "[data-testid='avatar-img']",
+    "[data-testid*='avatar']",
+    "[class*='Avatar']",
+    "[class*='avatar']"
+  ].join(", ");
 
   let selectedFiles = [];
   let previewUrls = [];
@@ -1958,7 +1989,7 @@
   }
 
   function findImageMessages() {
-    const containers = Array.from(document.querySelectorAll('[data-event-id], .mx_EventTile, li, [role="listitem"]'));
+    const containers = Array.from(document.querySelectorAll(CHAT_MESSAGE_SELECTOR));
     const result = [];
 
     for (const container of containers) {
@@ -1986,7 +2017,7 @@
       const rect = img.getBoundingClientRect();
       const src = img.currentSrc || img.src || "";
       if (!src) return false;
-      if (img.closest("#mg-panel") || img.closest("#mg-toggle") || img.closest(".mg-lightbox")) return false;
+      if (!isChatMessageImage(img)) return false;
       if (rect.width < 35 || rect.height < 35) return false;
 
       const lowerSrc = src.toLowerCase();
@@ -2013,11 +2044,31 @@
     return images[0];
   }
 
+  function isChatMessageImage(img) {
+    if (!img || !img.src) return false;
+    if (img.closest(NON_CHAT_IMAGE_SELECTOR)) return false;
+
+    const message = img.closest(CHAT_MESSAGE_SELECTOR);
+    if (!message) return false;
+
+    if (img.dataset.mgGalleryImage === "1") return true;
+    if (img.closest(MESSAGE_IMAGE_BODY_SELECTOR)) return true;
+    if (img.dataset.fullSrc || img.dataset.mxcUrl || img.getAttribute("data-full-src") || img.getAttribute("data-mxc-url")) return true;
+
+    const src = img.currentSrc || img.src || "";
+    const href = img.closest("a")?.href || "";
+    return isMatrixMediaUrl(src) || isMatrixMediaUrl(href);
+  }
+
+  function isLightboxImage(img) {
+    if (!img || !img.src) return false;
+    if (img.closest("#mg-panel") || img.closest(".mg-lightbox")) return false;
+    if (img.closest(".mg-inline-gallery")) return true;
+    return isChatMessageImage(img);
+  }
+
   function findMessageContainer(element) {
-    return element.closest("[data-event-id]") ||
-           element.closest(".mx_EventTile") ||
-           element.closest("li") ||
-           element.closest('[role="listitem"]') ||
+    return element.closest(CHAT_MESSAGE_SELECTOR) ||
            element;
   }
 
@@ -2188,31 +2239,25 @@
   function installLightboxHandler() {
     const maybeOpen = event => {
       const img = event.target.closest("img");
-      if (!img || !img.src) return;
-
-      if (img.closest("#mg-panel") || img.closest(".mg-lightbox")) return;
+      if (!isLightboxImage(img)) return;
 
       const gallery = img.closest(".mg-inline-gallery");
-      const message = img.closest("[data-event-id], .mx_EventTile, li, [role='listitem']");
+      const message = img.closest(CHAT_MESSAGE_SELECTOR);
 
       let images = [];
 
       if (gallery) {
-        images = Array.from(gallery.querySelectorAll("img"));
+        images = Array.from(gallery.querySelectorAll("img")).filter(isLightboxImage);
       } else if (message) {
         images = Array.from(message.querySelectorAll("img")).filter(candidate => {
           const rect = candidate.getBoundingClientRect();
-          return candidate.src &&
-            !candidate.closest("#mg-panel") &&
-            !candidate.closest(".mg-lightbox") &&
+          return isLightboxImage(candidate) &&
             rect.width >= 35 &&
             rect.height >= 35;
         });
-      } else {
-        images = [img];
       }
 
-      if (images.length === 0) images = [img];
+      if (images.length === 0) return;
 
       const index = images.indexOf(img);
       if (index < 0) return;
