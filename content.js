@@ -36,6 +36,7 @@
   let currentLightboxPanX = 0;
   let currentLightboxPanY = 0;
   let currentLightboxPanning = false;
+  const lightboxDownloadObjectUrls = new Set();
   const imageCaptions = new WeakMap();
   let pageSession = null;
   let lastComposerElement = null;
@@ -70,6 +71,7 @@
     installRoomChangeWatcher();
     requestPageSession();
     installHardOverlayCleanup();
+    window.addEventListener("pagehide", revokeLightboxDownloadObjectUrls, { once: true });
   }
 
   function injectPageBridge() {
@@ -2348,9 +2350,11 @@
     const caption = document.querySelector(".mg-lightbox-caption");
     const imageCaption = source.dataset.caption || "";
     if (caption) {
-      caption.textContent = imageCaption
-        ? `${imageCaption}  ·  ← / → switch, + / − zoom, drag to pan, D download, Esc close`
-        : "← / → switch, + / − zoom, drag to pan, D download, Esc close";
+      const lightboxHint = "← / → switch, + / − zoom, drag to pan, D download, Esc close";
+      caption.replaceChildren(
+        ...(imageCaption ? [document.createTextNode(imageCaption), document.createElement("br")] : []),
+        document.createTextNode(lightboxHint)
+      );
     }
 
     if (image.complete && image.naturalWidth > 0) {
@@ -2538,13 +2542,13 @@
     return currentLightboxImages[currentLightboxIndex] || null;
   }
 
-  async function resolveMediaDownloadUrlFromBridge(source) {
+  async function resolveMediaDownloadFromBridge(source) {
     const requestId = `mg_media_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
     return new Promise(resolve => {
       const timeout = setTimeout(() => {
         cleanup();
-        resolve("");
+        resolve({ downloadUrl: "", mxcUrl: "" });
       }, 2500);
 
       const onMessage = event => {
@@ -2554,7 +2558,10 @@
         if (event.data.requestId !== requestId) return;
 
         cleanup();
-        resolve(event.data.ok ? event.data.downloadUrl : "");
+        resolve({
+          downloadUrl: event.data.ok ? event.data.downloadUrl || "" : "",
+          mxcUrl: event.data.mxcUrl || ""
+        });
       };
 
       const cleanup = () => {
@@ -2584,33 +2591,126 @@
 
     try {
       const blob = await fetchBestMatrixMediaBlob(source);
-      const objectUrl = URL.createObjectURL(blob);
-
-      try {
-        const link = document.createElement("a");
-        link.href = objectUrl;
-        link.download = sanitizeFilename(filename);
-        link.rel = "noopener";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-      } finally {
-        setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
-      }
+      downloadBlob(blob, filename);
     } catch (error) {
       console.error("Download failed:", error);
 
-      const fallback = source.dataset.fullSrc || source.currentSrc || source.src;
       try {
-        window.open(fallback, "_blank", "noopener");
-      } catch {}
+        const renderedBlob = await makeRenderedLightboxImageBlob(source);
+        if (renderedBlob) {
+          downloadBlob(renderedBlob, filename);
+          return;
+        }
+      } catch (renderError) {
+        console.error("Rendered image download fallback failed:", renderError);
+      }
+
+      const fallback = source.dataset.fullSrc || source.currentSrc || source.src;
+      if (isBrowserDownloadUrl(fallback) && !isMatrixMediaUrl(fallback)) {
+        downloadUrl(fallback, filename);
+      }
+    }
+  }
+
+  function downloadBlob(blob, filename) {
+    const objectUrl = URL.createObjectURL(blob);
+    lightboxDownloadObjectUrls.add(objectUrl);
+
+    downloadUrl(objectUrl, filenameForBlob(filename, blob));
+
+    setTimeout(() => {
+      revokeLightboxDownloadObjectUrl(objectUrl);
+    }, 5 * 60 * 1000);
+  }
+
+  function downloadUrl(url, filename) {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = sanitizeFilename(filename) || "matrix-image";
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  async function makeRenderedLightboxImageBlob(source) {
+    const image = [document.getElementById("mg-lightbox-image"), source]
+      .find(candidate => candidate?.complete && candidate.naturalWidth && candidate.naturalHeight);
+    if (!image) return null;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+
+    const context = canvas.getContext("2d");
+    if (!context) return null;
+
+    context.drawImage(image, 0, 0);
+
+    return new Promise(resolve => {
+      canvas.toBlob(blob => resolve(blob), "image/png");
+    });
+  }
+
+  function isBrowserDownloadUrl(url) {
+    return /^(https?:|blob:|data:)/i.test(String(url || ""));
+  }
+
+  function isMatrixMediaUrl(url) {
+    try {
+      const parsed = new URL(url, window.location.href);
+      return parsed.pathname.includes("/_matrix/") && parsed.pathname.includes("/media/");
+    } catch {
+      return false;
+    }
+  }
+
+  function filenameForBlob(filename, blob) {
+    const safeName = sanitizeFilename(filename) || "matrix-image";
+    if (/\.[A-Za-z0-9]{1,8}$/.test(safeName)) return safeName;
+
+    const extension = extensionForMimeType(blob?.type);
+    return extension ? `${safeName}.${extension}` : safeName;
+  }
+
+  function extensionForMimeType(type) {
+    const normalized = String(type || "").split(";")[0].trim().toLowerCase();
+    const map = {
+      "image/jpeg": "jpg",
+      "image/jpg": "jpg",
+      "image/png": "png",
+      "image/gif": "gif",
+      "image/webp": "webp",
+      "image/avif": "avif",
+      "image/bmp": "bmp",
+      "image/svg+xml": "svg"
+    };
+
+    return map[normalized] || "";
+  }
+
+  function revokeLightboxDownloadObjectUrl(objectUrl) {
+    if (!lightboxDownloadObjectUrls.delete(objectUrl)) return;
+
+    try {
+      URL.revokeObjectURL(objectUrl);
+    } catch {}
+  }
+
+  function revokeLightboxDownloadObjectUrls() {
+    for (const objectUrl of Array.from(lightboxDownloadObjectUrls)) {
+      revokeLightboxDownloadObjectUrl(objectUrl);
     }
   }
 
   async function fetchBestMatrixMediaBlob(source) {
-    const bridgeUrl = await resolveMediaDownloadUrlFromBridge(source);
+    const bridgeMedia = await resolveMediaDownloadFromBridge(source);
+    if (bridgeMedia.mxcUrl && !source.dataset.mxcUrl) {
+      source.dataset.mxcUrl = bridgeMedia.mxcUrl;
+    }
+
     const candidates = [
-      ...(bridgeUrl ? [bridgeUrl] : []),
+      ...(bridgeMedia.downloadUrl ? [bridgeMedia.downloadUrl] : []),
       ...buildMatrixMediaDownloadCandidates(source)
     ];
 

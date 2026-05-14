@@ -18,4 +18,5 @@
 3. Select `manifest.json` from the extracted folder, e.g. [downloads/matrix-gallery/manifest.json]
 
 Notes:
-This extension does not work in the desktop apps/androis/iOS. You should use the web version and install the webpage as app. You find this option in your browser adress bar. This should be just as good as the desktop apps.
+* This extension does not work in the desktop apps/androis/iOS. You should use the web version and install the webpage as app. You find this option in your browser adress bar. This should be just as good as the desktop apps.
+* If the extension is not present/not installed/unistalled, then the images are just displayed one after the other. The captions are accessible in the image view, raw view.
