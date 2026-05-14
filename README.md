@@ -1,4 +1,4 @@
-# Matrix Gallery Sender v0.29.0
+# Matrix Gallery v0.31.0
 
 ## Installation
 

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Matrix Gallery Sender",
+  "name": "Matrix Gallery",
   "version": "0.31.0",
-  "description": "Cross-browser Matrix gallery extension with resize-safe floating plus button.",
+  "description": "Matrix gallery extension with plus button for gallery upload.",
   "permissions": [
     "storage",
     "scripting"
@@ -46,7 +46,7 @@
   "minimum_chrome_version": "114",
   "browser_specific_settings": {
     "gecko": {
-      "id": "matrix-gallery-sender@tkluge.de",
+      "id": "matrix-gallery@tkluge.de",
       "strict_min_version": "121.0"
     }
   }
