@@ -1,0 +1,646 @@
+#mg-panel {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2147483647;
+  width: 380px;
+  max-height: 82vh;
+  overflow: auto;
+  background: #1f2937;
+  color: white;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  font-family: system-ui, sans-serif;
+  padding: 14px;
+}
+
+#mg-panel.mg-hidden {
+  display: none;
+}
+
+#mg-toggle {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2147483646;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 16px;
+  background: #2563eb;
+  color: white;
+  cursor: grab;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  touch-action: none;
+  user-select: none;
+}
+
+#mg-toggle:active {
+  cursor: grabbing;
+}
+
+#mg-panel h3 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+}
+
+#mg-panel label {
+  display: block;
+  margin-top: 10px;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+#mg-panel input,
+#mg-panel textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 4px;
+  border-radius: 8px;
+  border: 1px solid #4b5563;
+  background: #111827;
+  color: white;
+  padding: 8px;
+}
+
+#mg-panel textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+#mg-panel button {
+  margin-top: 10px;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#mg-send {
+  background: #22c55e;
+  color: #052e16;
+}
+
+#mg-close {
+  background: #374151;
+  color: white;
+  float: right;
+}
+
+#mg-clear {
+  background: #6b7280;
+  color: white;
+  margin-right: 6px;
+}
+
+#mg-status {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #d1d5db;
+  white-space: pre-wrap;
+}
+
+#mg-preview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.mg-preview-item {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #111827;
+}
+
+.mg-preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mg-remove-image {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: rgba(17, 24, 39, 0.88) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.55) !important;
+  font-size: 15px !important;
+  line-height: 20px !important;
+  cursor: pointer !important;
+}
+
+#mg-dropzone {
+  margin-top: 8px;
+  padding: 18px;
+  border: 2px dashed #6b7280;
+  border-radius: 10px;
+  text-align: center;
+  color: #d1d5db;
+  background: #111827;
+  font-size: 13px;
+}
+
+#mg-dropzone.mg-dragover,
+body.mg-global-dragover #mg-dropzone {
+  border-color: #22c55e;
+  background: #052e16;
+  color: white;
+}
+
+#mg-global-drop-hint {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483645;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: rgba(17, 24, 39, 0.35);
+  color: white;
+  font-family: system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+body.mg-global-dragover #mg-global-drop-hint {
+  display: flex;
+}
+
+.mg-inline-gallery {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 6px 2px 10px 2px !important;
+  scroll-snap-type: x proximity !important;
+  box-sizing: border-box !important;
+}
+
+.mg-inline-gallery img {
+  flex: 0 0 auto !important;
+  max-height: 190px !important;
+  max-width: min(320px, 70vw) !important;
+  width: auto !important;
+  object-fit: contain !important;
+  border-radius: 8px !important;
+  scroll-snap-align: start !important;
+  cursor: zoom-in !important;
+}
+
+.mg-gallery-item {
+  flex: 0 0 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.mg-gallery-placeholder {
+  display: none !important;
+}
+
+.mg-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  background: rgba(0, 0, 0, 0.97);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mg-lightbox img {
+  max-width: 100vw;
+  max-height: 100vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.mg-lightbox-caption {
+  position: fixed;
+  left: 20px;
+  right: 20px;
+  bottom: 18px;
+  color: white;
+  text-align: center;
+  font-family: system-ui, sans-serif;
+  opacity: 0.9;
+}
+
+.mg-lightbox-counter {
+  position: fixed;
+  top: 18px;
+  right: 22px;
+  color: white;
+  font-family: system-ui, sans-serif;
+  opacity: 0.85;
+}
+
+.mg-lightbox-close {
+  position: fixed;
+  top: 16px;
+  left: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.55);
+  background: rgba(0,0,0,0.45);
+  color: white;
+  font-size: 24px;
+  line-height: 30px;
+  cursor: pointer;
+}
+
+
+/* v9 persistent gallery and enhanced viewer additions */
+.mg-lightbox-image-wrap {
+  max-width: 100vw;
+  max-height: 100vh;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#mg-lightbox-image {
+  transform-origin: center center;
+  transition: transform 120ms ease-out;
+}
+
+.mg-lightbox-controls {
+  position: fixed;
+  top: 16px;
+  left: 68px;
+  display: flex;
+  gap: 8px;
+  z-index: 2147483647;
+}
+
+.mg-lightbox-control {
+  min-width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.55);
+  background: rgba(0,0,0,0.45);
+  color: white;
+  font-size: 18px;
+  line-height: 30px;
+  cursor: pointer;
+  padding: 0 10px;
+}
+
+html.mg-global-dragover #mg-global-drop-hint {
+  display: flex;
+}
+
+
+/* v0.11.0: robust overlay and image viewer interaction fixes */
+#mg-global-drop-hint {
+  pointer-events: none !important;
+}
+
+body:not(.mg-global-dragover) #mg-global-drop-hint,
+html:not(.mg-global-dragover) #mg-global-drop-hint {
+  display: none !important;
+}
+
+.mg-inline-gallery,
+.mg-inline-gallery * {
+  pointer-events: auto !important;
+}
+
+.mg-lightbox {
+  cursor: default;
+}
+
+.mg-lightbox-image-wrap {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: grab;
+  user-select: none;
+}
+
+.mg-lightbox-image-wrap.mg-panning {
+  cursor: grabbing;
+}
+
+#mg-lightbox-image {
+  max-width: none !important;
+  max-height: none !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+  transform-origin: center center !important;
+  transition: transform 80ms ease-out !important;
+  user-select: none !important;
+  -webkit-user-drag: none !important;
+  pointer-events: none !important;
+}
+
+
+/* v0.13.0: stable inline gallery thumbnail size after page reload */
+.mg-inline-gallery {
+  align-items: center !important;
+}
+
+.mg-gallery-item {
+  min-height: 190px !important;
+}
+
+.mg-inline-gallery img,
+.mg-inline-gallery img[data-mg-gallery-image="1"] {
+  height: 190px !important;
+  max-height: 190px !important;
+  width: auto !important;
+  min-width: 80px !important;
+  max-width: min(360px, 75vw) !important;
+  object-fit: contain !important;
+  display: block !important;
+}
+
+
+/* v0.14.0: viewer fit, white transparency background, and pan clamping */
+.mg-lightbox {
+  background: rgba(0, 0, 0, 0.97) !important;
+}
+
+.mg-lightbox-image-wrap {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: transparent !important;
+}
+
+#mg-lightbox-image {
+  background: white !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  transform-origin: center center !important;
+}
+
+
+/* v0.17.0: never show global drop overlay above the upload dialog */
+body:has(#mg-panel:not(.mg-hidden)) #mg-global-drop-hint {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+
+/* v0.19.0: drag overlay is hidden while dialog is open and removed by script */
+#mg-panel:not(.mg-hidden) ~ #mg-global-drop-hint,
+body:has(#mg-panel:not(.mg-hidden)) #mg-global-drop-hint {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+
+/* v0.24.0: cleaner dialog and restored extension drop overlay */
+#mg-panel {
+  width: 400px !important;
+}
+
+#mg-settings-toggle {
+  background: #374151 !important;
+  color: #e5e7eb !important;
+  font-size: 12px !important;
+  padding: 7px 10px !important;
+  margin-top: 0 !important;
+  margin-bottom: 8px !important;
+}
+
+#mg-settings.mg-settings-hidden {
+  display: none !important;
+}
+
+#mg-settings {
+  margin: 8px 0 12px 0;
+  padding: 10px;
+  border: 1px solid #4b5563;
+  border-radius: 10px;
+  background: rgba(17, 24, 39, 0.7);
+}
+
+#mg-upload-pane {
+  margin-top: 12px;
+  border: 1px solid #4b5563;
+  border-radius: 14px;
+  background: #111827;
+  overflow: hidden;
+}
+
+#mg-dropzone {
+  margin: 0 !important;
+  border: none !important;
+  border-bottom: 1px dashed #4b5563 !important;
+  border-radius: 0 !important;
+  padding: 16px !important;
+  background: #0f172a !important;
+  color: #e5e7eb !important;
+  cursor: pointer;
+  position: relative;
+}
+
+#mg-dropzone:hover {
+  background: #172033 !important;
+}
+
+#mg-dropzone.mg-dragover {
+  background: #052e16 !important;
+}
+
+.mg-dropzone-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.mg-dropzone-subtitle {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+#mg-files {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+#mg-preview {
+  display: flex !important;
+  grid-template-columns: none !important;
+  gap: 8px !important;
+  padding: 10px;
+  margin: 0 !important;
+  overflow-x: auto;
+  min-height: 76px;
+  align-items: center;
+}
+
+#mg-preview:empty::before {
+  content: "Noch keine Bilder in der Warteschlange";
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.mg-preview-item {
+  flex: 0 0 auto;
+  width: 72px !important;
+  height: 72px !important;
+  aspect-ratio: auto !important;
+}
+
+#mg-upload-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 10px;
+  border-top: 1px solid #374151;
+  background: #1f2937;
+}
+
+#mg-upload-actions button {
+  margin-top: 0 !important;
+}
+
+#mg-send {
+  background: #2563eb !important;
+  color: white !important;
+}
+
+#mg-clear {
+  background: #4b5563 !important;
+  color: white !important;
+}
+
+#mg-global-drop-hint {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483645 !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(15, 23, 42, 0.20) !important;
+  color: #0f172a !important;
+  font-family: system-ui, sans-serif !important;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  text-align: center !important;
+  pointer-events: none !important;
+}
+
+#mg-global-drop-hint > div {
+  padding: 22px 30px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22);
+  border: 2px dashed #2563eb;
+}
+
+#mg-global-drop-hint span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #475569;
+}
+
+body.mg-global-dragover #mg-global-drop-hint {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+body:not(.mg-global-dragover) #mg-global-drop-hint {
+  display: none !important;
+}
+
+
+/* v0.25.0: safe overlay cleanup. Do not hide Matrix UI containers. */
+body.mg-native-drop-blocked #mg-global-drop-hint {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+body:not(.mg-global-dragover) #mg-global-drop-hint {
+  display: none !important;
+}
+
+
+/* v0.27.0: portable mg-gallery markers may appear as text in clients without HTML support.
+   The extension tries to regroup and hide original image events; if a marker leaks into
+   visible body text, it is intentionally compact and globally parseable. */
+
+
+/* v0.29.0: queued image caption button */
+.mg-caption-image {
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: rgba(37, 99, 235, 0.90) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
+  cursor: pointer !important;
+  z-index: 2;
+}
+
+.mg-lightbox-caption {
+  background: rgba(0, 0, 0, 0.45);
+  padding: 6px 10px;
+  border-radius: 8px;
+  width: fit-content;
+  max-width: calc(100vw - 40px);
+  margin: 0 auto;
+}
+
+
+/* v0.31.0: compact resize-safe floating plus button */
+#mg-toggle {
+  width: 48px !important;
+  height: 48px !important;
+  min-width: 48px !important;
+  min-height: 48px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  font-size: 30px !important;
+  line-height: 48px !important;
+  text-align: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}

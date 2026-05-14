@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "Matrix Gallery Sender",
+  "version": "0.31.0",
+  "description": "Cross-browser Matrix gallery extension with resize-safe floating plus button.",
+  "permissions": [
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://app.element.io/*",
+    "https://*.element.io/*",
+    "https://matrix.helmholtz.cloud/*",
+    "https://matrix-client.matrix.org/*",
+    "https://*/_matrix/*",
+    "http://*/_matrix/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "page-bridge.js"
+      ],
+      "matches": [
+        "https://app.element.io/*",
+        "https://*.element.io/*",
+        "https://matrix.helmholtz.cloud/*"
+      ]
+    }
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://app.element.io/*",
+        "https://*.element.io/*",
+        "https://matrix.helmholtz.cloud/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "minimum_chrome_version": "114",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "matrix-gallery-sender@tkluge.de",
+      "strict_min_version": "121.0"
+    }
+  }
+}
