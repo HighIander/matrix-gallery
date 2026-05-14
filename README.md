@@ -1,4 +1,4 @@
-# Matrix Gallery v0.31.0
+# Matrix Gallery
 
 This extension changes the way images are uploaded and displayed by Matrix, in order to mimick the feeling of Mattermost and other chat tools that allow upload of multiple images at once. 
 
@@ -10,7 +10,7 @@ Licence: None (use as you like). No liability is taken by the author!
 
 ## Installation
 
-0. Download into a directory on your computer, e.g. to [downloads/matrix-gallery]
+0. Download into a directory on your computer, e.g. to [downloads/matrix-gallery]. You can download a zip file and extract it on your computer from the latest release here: https://github.com/HighIander/matrix-gallery/releases
 
 ### Chrome / Edge installation
 1. Open:
