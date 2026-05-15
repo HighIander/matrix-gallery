@@ -773,6 +773,25 @@ html[data-mg-language="en"] .mg-thread-inline-reply::after {
   display: block !important;
 }
 
+.mg-thread-message-reactions {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 4px !important;
+  margin-top: 5px !important;
+}
+
+.mg-thread-message-reaction {
+  display: inline-flex !important;
+  align-items: center !important;
+  min-height: 20px !important;
+  padding: 1px 7px !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 999px !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+  font: 600 12px/1.2 system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif !important;
+}
+
 .mg-thread-message-actions {
   position: absolute !important;
   top: 0 !important;

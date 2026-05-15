@@ -1042,12 +1042,21 @@
 
     const eventObjects = collectRoomEventObjects(room);
     const eventById = new Map();
+    const reactionSummaries = [];
 
     for (const event of eventObjects) {
+      const reaction = summarizeReactionEvent(event, room, client);
+      if (reaction) {
+        reactionSummaries.push(reaction);
+        continue;
+      }
+
       const summary = summarizeThreadEvent(event, room, client);
       if (!summary?.eventId) continue;
       eventById.set(summary.eventId, summary);
     }
+
+    attachReactionsToEventSummaries(eventById, reactionSummaries);
 
     const groups = new Map();
 
@@ -1062,6 +1071,7 @@
           rootSender: "",
           rootSenderName: "",
           rootTs: 0,
+          rootRedacted: false,
           latestEventId: "",
           events: []
         });
@@ -1074,14 +1084,18 @@
       const root = eventById.get(group.rootEventId);
 
       if (root) {
-        group.rootBody = root.body || "";
-        group.rootSender = root.sender || "";
-        group.rootSenderName = root.senderName || "";
-        group.rootTs = root.ts || 0;
+        group.rootRedacted = Boolean(root.redacted);
+
+        if (!root.redacted) {
+          group.rootBody = root.body || "";
+          group.rootSender = root.sender || "";
+          group.rootSenderName = root.senderName || "";
+          group.rootTs = root.ts || 0;
+        }
       }
 
       group.events.sort((a, b) => (a.ts || 0) - (b.ts || 0));
-      const latest = group.events[group.events.length - 1];
+      const latest = group.events.filter(item => !item.redacted).at(-1);
       group.latestEventId = latest?.eventId || group.rootEventId;
     }
 
@@ -1196,12 +1210,14 @@
       const eventId = event.getId?.() || event.event?.event_id || event.event_id || "";
       if (!eventId) return null;
 
+      const eventType = event.getType?.() || event.event?.type || event.type || "";
       const rawContent = event.getContent?.() || event.event?.content || event.content || {};
       const rawRelatesTo = rawContent["m.relates_to"] || {};
       const relation = event.getRelation?.() || {};
       const relType = rawRelatesTo.rel_type || relation.rel_type || "";
+      const redacted = isRedactedMatrixEvent(event);
 
-      if (relType === "m.replace") {
+      if (eventType === "m.reaction" || relType === "m.annotation" || relType === "m.replace") {
         return null;
       }
 
@@ -1242,14 +1258,195 @@
         format: content.format || "",
         formattedBody: typeof content.formatted_body === "string" ? content.formatted_body : "",
         body: plainEventBody(content),
+        redacted,
+        reactions: summarizeAggregatedEventReactions(event),
         threadRootId,
         replyToEventId,
         gallery: content["de.tkluge.gallery"] || null,
-        media: summarizeEventMedia(content)
+        media: redacted ? null : summarizeEventMedia(content)
       };
     } catch {
       return null;
     }
+  }
+
+  function isRedactedMatrixEvent(event) {
+    try {
+      if (typeof event.isRedacted === "function" && event.isRedacted()) return true;
+    } catch {}
+
+    try {
+      if (event.isRedacted === true) return true;
+    } catch {}
+
+    const rawEvent = event?.event || event || {};
+    const unsigned = event.getUnsigned?.() || rawEvent.unsigned || {};
+
+    return Boolean(unsigned.redacted_because || rawEvent.redacted_because);
+  }
+
+  function summarizeReactionEvent(event, room, client) {
+    try {
+      if (isRedactedMatrixEvent(event)) return null;
+
+      const eventId = event.getId?.() || event.event?.event_id || event.event_id || "";
+      if (!eventId) return null;
+
+      const eventType = event.getType?.() || event.event?.type || event.type || "";
+      const content = event.getContent?.() || event.event?.content || event.content || {};
+      const relation = event.getRelation?.() || {};
+      const relatesTo = content["m.relates_to"] || relation || {};
+      const relType = relatesTo.rel_type || relation.rel_type || "";
+
+      if (eventType !== "m.reaction" && relType !== "m.annotation") return null;
+
+      const targetEventId = relatesTo.event_id || relation.event_id || "";
+      const key = relatesTo.key || relation.key || "";
+      if (!targetEventId || !key) return null;
+
+      const sender = event.getSender?.() || event.event?.sender || event.sender || "";
+
+      return {
+        eventId,
+        targetEventId,
+        key,
+        sender,
+        senderName: displayNameForSender(sender, event, room, client),
+        ts: event.getTs?.() || event.event?.origin_server_ts || event.origin_server_ts || 0
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  function summarizeAggregatedEventReactions(event) {
+    const chunks = [];
+
+    const add = value => {
+      if (!value) return;
+
+      if (Array.isArray(value)) {
+        chunks.push(...value);
+        return;
+      }
+
+      if (value instanceof Map) {
+        for (const item of value.values()) add(item);
+        return;
+      }
+
+      if (value instanceof Set) {
+        for (const item of value.values()) add(item);
+        return;
+      }
+
+      if (Array.isArray(value.chunk)) {
+        chunks.push(...value.chunk);
+        return;
+      }
+
+      if (Array.isArray(value.relations)) {
+        chunks.push(...value.relations);
+        return;
+      }
+
+      if (typeof value === "object") {
+        const key = value.key || value.content?.["m.relates_to"]?.key || "";
+        const count = Number(value.count || value.total || value.length || 0);
+        if (key && count > 0) chunks.push(value);
+      }
+    };
+
+    try {
+      add(event.getServerAggregatedRelation?.("m.annotation"));
+    } catch {}
+
+    try {
+      const unsigned = event.getUnsigned?.() || event.event?.unsigned || {};
+      add(unsigned?.["m.relations"]?.["m.annotation"]);
+    } catch {}
+
+    const byKey = new Map();
+
+    for (const item of chunks) {
+      const key =
+        item?.key ||
+        item?.content?.["m.relates_to"]?.key ||
+        item?.event?.content?.["m.relates_to"]?.key ||
+        "";
+      if (!key) continue;
+
+      const count = Math.max(1, Number(item?.count || item?.total || item?.length || 1) || 1);
+      const existing = byKey.get(key);
+
+      if (existing) {
+        existing.count = Math.max(existing.count, count);
+      } else {
+        byKey.set(key, {
+          key,
+          count,
+          senders: []
+        });
+      }
+    }
+
+    return Array.from(byKey.values()).sort(compareReactionSummaries);
+  }
+
+  function attachReactionsToEventSummaries(eventById, reactions) {
+    const grouped = new Map();
+
+    for (const reaction of reactions) {
+      if (!reaction?.targetEventId || !reaction.key || !eventById.has(reaction.targetEventId)) continue;
+
+      if (!grouped.has(reaction.targetEventId)) {
+        grouped.set(reaction.targetEventId, new Map());
+      }
+
+      const target = grouped.get(reaction.targetEventId);
+      const key = reaction.key;
+
+      if (!target.has(key)) {
+        target.set(key, {
+          key,
+          count: 0,
+          senders: [],
+          senderIds: new Set(),
+          firstTs: reaction.ts || 0
+        });
+      }
+
+      const item = target.get(key);
+      const senderId = reaction.sender || reaction.eventId;
+      if (senderId && item.senderIds.has(senderId)) continue;
+
+      if (senderId) item.senderIds.add(senderId);
+      item.count += 1;
+      if (reaction.senderName) item.senders.push(reaction.senderName);
+      if (!item.firstTs || (reaction.ts && reaction.ts < item.firstTs)) item.firstTs = reaction.ts;
+    }
+
+    for (const [eventId, reactionMap] of grouped.entries()) {
+      const summary = eventById.get(eventId);
+      if (!summary || summary.reactions?.length) continue;
+
+      summary.reactions = Array.from(reactionMap.values())
+        .map(item => ({
+          key: item.key,
+          count: item.count,
+          senders: item.senders,
+          firstTs: item.firstTs || 0
+        }))
+        .sort(compareReactionSummaries);
+    }
+  }
+
+  function compareReactionSummaries(a, b) {
+    const at = Number(a?.firstTs || 0);
+    const bt = Number(b?.firstTs || 0);
+    if (at && bt && at !== bt) return at - bt;
+    if ((b?.count || 0) !== (a?.count || 0)) return (b?.count || 0) - (a?.count || 0);
+    return String(a?.key || "").localeCompare(String(b?.key || ""));
   }
 
   function displayNameForSender(sender, event, room, client) {

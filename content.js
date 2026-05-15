@@ -2961,12 +2961,14 @@
             item.body || "",
             item.format || "",
             item.formattedBody || "",
+            item.redacted ? "redacted" : "",
+            reactionSignatureForThreadItem(item),
             item.gallery?.id || item.media?.galleryId || "",
             item.media?.downloadUrl || ""
           ].join(":"))
           .join(",");
 
-        return `${group.rootEventId}:${root?.ts || group.rootTs || 0}:${root?.body || ""}:${root?.format || ""}:${root?.formattedBody || ""}:${replies}`;
+        return `${group.rootEventId}:${root?.ts || group.rootTs || 0}:${root?.body || ""}:${root?.format || ""}:${root?.formattedBody || ""}:${group.rootRedacted ? "root-redacted" : ""}:${reactionSignatureForThreadItem(root)}:${replies}`;
       })
       .sort()
       .join("|");
@@ -3042,13 +3044,16 @@
 
   function buildMergedThreadBlocks(eventElements) {
     for (const group of threadGroupsByRootEventId.values()) {
-      const replies = group.events
+      const allReplies = group.events
         .filter(item => item?.eventId && item.eventId !== group.rootEventId)
         .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+      const replies = allReplies.filter(isRenderableThreadItem);
+      const rootElement = eventElements.get(group.rootEventId);
+
+      hideNonRenderableThreadSourceMessages(group, allReplies, eventElements, rootElement);
 
       if (replies.length === 0) continue;
 
-      const rootElement = eventElements.get(group.rootEventId);
       const firstReplyElement = replies.map(item => eventElements.get(item.eventId)).find(Boolean);
       const anchor = rootElement || firstReplyElement;
 
@@ -3068,11 +3073,26 @@
         rootElement.classList.add("mg-thread-hidden-message");
       }
 
-      for (const item of replies) {
+      for (const item of allReplies) {
         const source = eventElements.get(item.eventId);
         if (source) {
           source.classList.add("mg-thread-hidden-message");
         }
+      }
+    }
+  }
+
+  function hideNonRenderableThreadSourceMessages(group, replies, eventElements, rootElement) {
+    if (group.rootRedacted && rootElement) {
+      rootElement.classList.add("mg-thread-hidden-message");
+    }
+
+    for (const item of replies) {
+      if (isRenderableThreadItem(item)) continue;
+
+      const source = eventElements.get(item.eventId);
+      if (source) {
+        source.classList.add("mg-thread-hidden-message");
       }
     }
   }
@@ -3084,11 +3104,20 @@
       sender: group.rootSender || "",
       senderName: group.rootSenderName || "",
       ts: group.rootTs || 0,
-      body: group.rootBody || t("threadStart")
+      body: group.rootBody || t("threadStart"),
+      redacted: Boolean(group.rootRedacted)
     };
+    if (group.rootRedacted) {
+      rootMeta.redacted = true;
+    }
     const threadTitle = firstThreadLine(rootMeta.body || group.rootBody || group.rootEventId);
     const threadAuthor = displayNameForThreadItem(rootMeta);
-    const separatedRuns = findSeparatedThreadReplyRuns(group.rootEventId, replies, eventElements, rootMeta);
+    const separatedRuns = findSeparatedThreadReplyRuns(
+      group.rootEventId,
+      replies.filter(isRenderableThreadItem),
+      eventElements,
+      isRenderableThreadItem(rootMeta) ? rootMeta : null
+    );
 
     for (const run of separatedRuns) {
       const placement = findChronologicalThreadReplyPlacement(run, eventElements);
@@ -3341,13 +3370,18 @@
       sender: group.rootSender || "",
       senderName: group.rootSenderName || "",
       ts: group.rootTs || 0,
-      body: group.rootBody || t("threadStart")
+      body: group.rootBody || t("threadStart"),
+      redacted: Boolean(group.rootRedacted)
     };
+    if (group.rootRedacted) {
+      rootMeta.redacted = true;
+    }
 
-    const allItems = [rootMeta, ...replies];
-    const split = splitMergedThreadBlockReplies(rootMeta, replies, eventElements);
+    const rootItems = isRenderableThreadItem(rootMeta) ? [rootMeta] : [];
+    const allItems = [...rootItems, ...replies.filter(isRenderableThreadItem)];
+    const split = splitMergedThreadBlockReplies(rootItems, replies, eventElements);
     const isExpanded = expandedMergedThreadRootEventIds.has(group.rootEventId);
-    const visibleItems = isExpanded ? allItems : [rootMeta, ...split.visibleReplies];
+    const visibleItems = isExpanded ? allItems : [...rootItems, ...split.visibleReplies];
 
     messages.append(...createThreadMessageRows(visibleItems, eventElements, group.rootEventId));
 
@@ -3361,11 +3395,11 @@
     return block;
   }
 
-  function splitMergedThreadBlockReplies(rootMeta, replies, eventElements) {
+  function splitMergedThreadBlockReplies(rootItems, replies, eventElements) {
     const replyItems = replies
-      .filter(item => item?.eventId)
+      .filter(item => item?.eventId && isRenderableThreadItem(item))
       .sort((a, b) => compareThreadItemsByTimeThenDom(a, b, eventElements));
-    const threadItems = [rootMeta, ...replyItems]
+    const threadItems = [...rootItems, ...replyItems]
       .filter(item => item?.eventId)
       .sort((a, b) => compareThreadItemsByTimeThenDom(a, b, eventElements));
     const threadEventIds = new Set(threadItems.map(item => item.eventId));
@@ -3454,13 +3488,19 @@
 
     for (let index = 0; index < items.length; index += 1) {
       const item = items[index];
+      if (!isRenderableThreadItem(item)) continue;
+
       const galleryId = threadGalleryGroupId(item);
 
       if (galleryId) {
         const grouped = [item];
         let nextIndex = index + 1;
 
-        while (nextIndex < items.length && threadGalleryGroupId(items[nextIndex]) === galleryId) {
+        while (
+          nextIndex < items.length &&
+          isRenderableThreadItem(items[nextIndex]) &&
+          threadGalleryGroupId(items[nextIndex]) === galleryId
+        ) {
           grouped.push(items[nextIndex]);
           nextIndex += 1;
         }
@@ -3505,6 +3545,14 @@
     }
 
     return rows;
+  }
+
+  function isRenderableThreadItem(item) {
+    if (!item || item.redacted) return false;
+    if (isThreadImageItem(item)) return true;
+    if (typeof item.formattedBody === "string" && item.formattedBody.trim()) return true;
+    if (typeof item.body === "string" && item.body.trim()) return true;
+    return typeof item.msgtype === "string" && item.msgtype.trim();
   }
 
   function threadGalleryGroupId(item) {
@@ -3661,9 +3709,53 @@
     body.className = "mg-thread-message-body";
     body.appendChild(messageElement);
     content.appendChild(body);
+
+    const reactions = createThreadReactionRow(item);
+    if (reactions) {
+      content.appendChild(reactions);
+    }
+
     row.appendChild(content);
 
     return row;
+  }
+
+  function createThreadReactionRow(item) {
+    const reactions = Array.isArray(item?.reactions)
+      ? item.reactions.filter(reaction => reaction?.key)
+      : [];
+    if (reactions.length === 0) return null;
+
+    const row = document.createElement("div");
+    row.className = "mg-thread-message-reactions";
+
+    for (const reaction of reactions) {
+      const pill = document.createElement("span");
+      pill.className = "mg-thread-message-reaction";
+      pill.textContent = `${reaction.key}${Number(reaction.count || 0) > 1 ? ` ${reaction.count}` : ""}`;
+
+      const senders = Array.isArray(reaction.senders)
+        ? reaction.senders.filter(Boolean)
+        : [];
+      pill.title = senders.length > 0
+        ? senders.join(", ")
+        : `${reaction.count || 1}`;
+
+      row.appendChild(pill);
+    }
+
+    return row;
+  }
+
+  function reactionSignatureForThreadItem(item) {
+    return Array.isArray(item?.reactions)
+      ? item.reactions
+        .map(reaction => {
+          const senders = Array.isArray(reaction?.senders) ? reaction.senders.join("+") : "";
+          return `${reaction?.key || ""}=${reaction?.count || 0}:${senders}`;
+        })
+        .join(",")
+      : "";
   }
 
   async function editThreadMessage(item) {
@@ -4595,13 +4687,19 @@
       sender: group?.rootSender || "",
       senderName: group?.rootSenderName || "",
       ts: group?.rootTs || 0,
-      body: group?.rootBody || t("threadStart")
+      body: group?.rootBody || t("threadStart"),
+      redacted: Boolean(group?.rootRedacted)
     };
+    if (group?.rootRedacted) {
+      rootMeta.redacted = true;
+    }
     const replies = (group?.events || [])
       .filter(item => item?.eventId && item.eventId !== rootEventId)
+      .filter(isRenderableThreadItem)
       .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    const items = isRenderableThreadItem(rootMeta) ? [rootMeta, ...replies] : replies;
 
-    return createThreadMessageRows([rootMeta, ...replies], eventElements, rootEventId).map(row => {
+    return createThreadMessageRows(items, eventElements, rootEventId).map(row => {
       row.classList.add("mg-thread-side-message");
       return row;
     });
@@ -4612,6 +4710,7 @@
     const rootMeta = threadMetadataByEventId.get(rootEventId);
     const latest = (group?.events || [])
       .filter(item => item?.eventId)
+      .filter(isRenderableThreadItem)
       .sort((a, b) => (a.ts || 0) - (b.ts || 0))
       .at(-1);
 
