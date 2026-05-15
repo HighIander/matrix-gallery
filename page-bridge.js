@@ -1239,6 +1239,8 @@
         senderName: displayNameForSender(sender, event, room, client),
         ts: event.getTs?.() || event.event?.origin_server_ts || event.origin_server_ts || 0,
         msgtype: content.msgtype || "",
+        format: content.format || "",
+        formattedBody: typeof content.formatted_body === "string" ? content.formatted_body : "",
         body: plainEventBody(content),
         threadRootId,
         replyToEventId,

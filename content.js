@@ -2955,10 +2955,18 @@
         const replies = (group.events || [])
           .filter(item => item?.eventId && item.eventId !== group.rootEventId)
           .sort((a, b) => (a.ts || 0) - (b.ts || 0))
-          .map(item => `${item.eventId}:${item.ts || 0}:${item.gallery?.id || item.media?.galleryId || ""}:${item.media?.downloadUrl || ""}`)
+          .map(item => [
+            item.eventId,
+            item.ts || 0,
+            item.body || "",
+            item.format || "",
+            item.formattedBody || "",
+            item.gallery?.id || item.media?.galleryId || "",
+            item.media?.downloadUrl || ""
+          ].join(":"))
           .join(",");
 
-        return `${group.rootEventId}:${root?.ts || group.rootTs || 0}:${replies}`;
+        return `${group.rootEventId}:${root?.ts || group.rootTs || 0}:${root?.body || ""}:${root?.format || ""}:${root?.formattedBody || ""}:${replies}`;
       })
       .sort()
       .join("|");
@@ -3830,11 +3838,162 @@
     const row = document.createElement("div");
     row.className = "mg-thread-message-fallback";
 
-    const body = document.createElement("span");
-    body.textContent = item.body || item.msgtype || t("threadMessage");
+    const formattedBody = typeof item?.formattedBody === "string" ? item.formattedBody : "";
+    const bodyText = item?.body || item?.msgtype || t("threadMessage");
 
-    row.appendChild(body);
+    if ((item?.format === "org.matrix.custom.html" || formattedBody) && formattedBody.trim()) {
+      const fragment = sanitizeMatrixHtmlFragment(formattedBody);
+      if (fragment.textContent.trim() || fragment.querySelector("br")) {
+        row.appendChild(fragment);
+        return row;
+      }
+    }
+
+    appendPlainTextWithLinks(row, bodyText);
     return row;
+  }
+
+  function sanitizeMatrixHtmlFragment(html) {
+    const template = document.createElement("template");
+    template.innerHTML = String(html || "");
+
+    for (const reply of template.content.querySelectorAll("mx-reply")) {
+      reply.remove();
+    }
+
+    return sanitizeMatrixHtmlChildren(template.content);
+  }
+
+  function sanitizeMatrixHtmlChildren(parent) {
+    const fragment = document.createDocumentFragment();
+
+    for (const node of Array.from(parent.childNodes)) {
+      const safeNode = sanitizeMatrixHtmlNode(node);
+      if (safeNode) fragment.appendChild(safeNode);
+    }
+
+    return fragment;
+  }
+
+  function sanitizeMatrixHtmlNode(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return document.createTextNode(node.textContent || "");
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE || !(node instanceof Element)) {
+      return null;
+    }
+
+    const tagName = node.tagName.toLowerCase();
+    const allowedTags = new Set([
+      "a",
+      "b",
+      "blockquote",
+      "br",
+      "code",
+      "del",
+      "details",
+      "em",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "hr",
+      "i",
+      "li",
+      "ol",
+      "p",
+      "pre",
+      "s",
+      "span",
+      "strong",
+      "sub",
+      "summary",
+      "sup",
+      "u",
+      "ul"
+    ]);
+
+    if (!allowedTags.has(tagName)) {
+      return sanitizeMatrixHtmlChildren(node);
+    }
+
+    const element = document.createElement(tagName);
+
+    if (tagName === "a") {
+      const href = node.getAttribute("href") || "";
+      if (isSafeThreadMessageUrl(href)) {
+        element.setAttribute("href", href);
+        element.setAttribute("target", "_blank");
+        element.setAttribute("rel", "noopener noreferrer");
+      }
+    } else if (tagName === "ol") {
+      const start = node.getAttribute("start") || "";
+      if (/^\d{1,4}$/.test(start)) element.setAttribute("start", start);
+    }
+
+    element.appendChild(sanitizeMatrixHtmlChildren(node));
+    return element;
+  }
+
+  function appendPlainTextWithLinks(container, text) {
+    const value = String(text || "");
+    const urlPattern = /\b(?:https?:\/\/|mailto:|matrix:|www\.)[^\s<>"']+/gi;
+    let lastIndex = 0;
+    let match = null;
+
+    while ((match = urlPattern.exec(value)) !== null) {
+      const url = trimTrailingLinkPunctuation(match[0]);
+      const href = normalizeThreadMessageUrl(url);
+      const matchStart = match.index;
+
+      appendTextWithLineBreaks(container, value.slice(lastIndex, matchStart));
+
+      if (isSafeThreadMessageUrl(href)) {
+        const link = document.createElement("a");
+        link.href = href;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = url;
+        container.appendChild(link);
+      } else {
+        appendTextWithLineBreaks(container, url);
+      }
+
+      appendTextWithLineBreaks(container, match[0].slice(url.length));
+      lastIndex = match.index + match[0].length;
+    }
+
+    appendTextWithLineBreaks(container, value.slice(lastIndex));
+  }
+
+  function appendTextWithLineBreaks(container, text) {
+    const parts = String(text || "").split(/\r?\n/);
+
+    for (let index = 0; index < parts.length; index += 1) {
+      if (index > 0) container.appendChild(document.createElement("br"));
+      if (parts[index]) container.appendChild(document.createTextNode(parts[index]));
+    }
+  }
+
+  function trimTrailingLinkPunctuation(value) {
+    return String(value || "").replace(/[),.;:!?]+$/g, "");
+  }
+
+  function normalizeThreadMessageUrl(url) {
+    const value = String(url || "");
+    return /^www\./i.test(value) ? `https://${value}` : value;
+  }
+
+  function isSafeThreadMessageUrl(url) {
+    try {
+      const parsed = new URL(String(url || ""), window.location.origin);
+      return ["http:", "https:", "mailto:", "matrix:"].includes(parsed.protocol);
+    } catch {
+      return false;
+    }
   }
 
   function installThreadPanelHandler() {

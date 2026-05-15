@@ -810,6 +810,52 @@ html[data-mg-language="en"] .mg-thread-inline-reply::after {
   box-sizing: border-box !important;
 }
 
+.mg-thread-message-fallback a {
+  color: #2563eb !important;
+  text-decoration: underline !important;
+}
+
+.mg-thread-message-fallback p,
+.mg-thread-message-fallback blockquote,
+.mg-thread-message-fallback ul,
+.mg-thread-message-fallback ol,
+.mg-thread-message-fallback pre {
+  margin-top: 0 !important;
+  margin-bottom: 6px !important;
+}
+
+.mg-thread-message-fallback > :last-child {
+  margin-bottom: 0 !important;
+}
+
+.mg-thread-message-fallback ul,
+.mg-thread-message-fallback ol {
+  padding-left: 20px !important;
+}
+
+.mg-thread-message-fallback blockquote {
+  border-left: 3px solid #d1d5db !important;
+  color: #4b5563 !important;
+  padding-left: 8px !important;
+}
+
+.mg-thread-message-fallback code,
+.mg-thread-message-fallback pre {
+  background: #eef2ff !important;
+  border-radius: 4px !important;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace !important;
+}
+
+.mg-thread-message-fallback code {
+  padding: 1px 4px !important;
+}
+
+.mg-thread-message-fallback pre {
+  overflow-x: auto !important;
+  padding: 8px !important;
+  white-space: pre-wrap !important;
+}
+
 .mg-thread-message-clone * ,
 .mg-thread-message-fallback * {
   color: inherit;
