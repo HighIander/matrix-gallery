@@ -408,10 +408,10 @@ html:not(.mg-global-dragover) #mg-global-drop-hint {
 }
 
 
-.mg-posted-image-delete {
+.mg-posted-image-delete,
+.mg-posted-image-reply {
   position: absolute !important;
   top: 6px !important;
-  right: 6px !important;
   z-index: 2 !important;
   width: 24px !important;
   height: 24px !important;
@@ -430,8 +430,29 @@ html:not(.mg-global-dragover) #mg-global-drop-hint {
   transition: opacity 120ms ease !important;
 }
 
+.mg-posted-image-delete {
+  right: 6px !important;
+}
+
+.mg-posted-image-reply {
+  right: 36px !important;
+}
+
+.mg-posted-image-reply svg {
+  width: 15px !important;
+  height: 15px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2.4 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+  pointer-events: none !important;
+}
+
 .mg-gallery-item:hover .mg-posted-image-delete,
-.mg-gallery-item:focus-within .mg-posted-image-delete {
+.mg-gallery-item:hover .mg-posted-image-reply,
+.mg-gallery-item:focus-within .mg-posted-image-delete,
+.mg-gallery-item:focus-within .mg-posted-image-reply {
   opacity: 1 !important;
   pointer-events: auto !important;
 }

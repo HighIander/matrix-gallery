@@ -503,6 +503,11 @@
       button.title = t("deletePostedImageTitle");
       button.setAttribute("aria-label", t("deletePostedImageTitle"));
     }
+
+    for (const button of document.querySelectorAll(".mg-posted-image-reply")) {
+      button.title = t("nativeReplyActionLabel");
+      button.setAttribute("aria-label", t("nativeReplyActionLabel"));
+    }
   }
 
   function createGlobalDropHint() {
@@ -3462,6 +3467,7 @@
       const wrapper = document.createElement("div");
       wrapper.className = "mg-gallery-item";
       wrapper.appendChild(img);
+      appendPostedImageReplyButton(wrapper, img.dataset.eventId || "");
       appendPostedImageDeleteButton(wrapper, img.dataset.eventId || "");
       gallery.appendChild(wrapper);
     }
@@ -5127,6 +5133,7 @@
       if (sourceMeta?.caption) clone.dataset.caption = sourceMeta.caption;
 
       wrapper.appendChild(clone);
+      appendPostedImageReplyButton(wrapper, sourceEventId);
       appendPostedImageDeleteButton(wrapper, sourceEventId);
       gallery.appendChild(wrapper);
     }
@@ -5158,6 +5165,39 @@
     });
 
     wrapper.appendChild(button);
+  }
+
+  function appendPostedImageReplyButton(wrapper, eventId) {
+    if (!eventId || !(wrapper instanceof Element)) return;
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "mg-posted-image-reply";
+    button.title = t("nativeReplyActionLabel");
+    button.setAttribute("aria-label", t("nativeReplyActionLabel"));
+    button.dataset.eventId = eventId;
+    button.innerHTML = `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M9 7 4 12l5 5" />
+        <path d="M5 12h9a6 6 0 0 1 6 6v1" />
+      </svg>
+    `;
+    button.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      replyToPostedGalleryImage(eventId);
+    });
+
+    wrapper.appendChild(button);
+  }
+
+  function replyToPostedGalleryImage(eventId) {
+    if (!eventId) return;
+
+    const rootEventId = getThreadRootIdForEventId(eventId) || eventId;
+    openNativeThreadView(rootEventId, eventId).catch(error => {
+      console.error("Opening native Matrix thread reply failed:", error);
+    });
   }
 
   async function deletePostedGalleryImage(eventId, wrapper = null) {
