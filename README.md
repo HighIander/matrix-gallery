@@ -1,12 +1,20 @@
-# Matrix Gallery v0.35.4
+# Matrix Gallery
 
 This extension changes the way images are uploaded and displayed by Matrix, in order to mimick the feeling of Mattermost and other chat tools that allow upload of multiple images at once. 
 
-You can drag/drop, paste or select images from disc and even optionally give individual image captions. The extension injects a "+" button at the lower right in matrix messenger in the webbrowser to open the image upload dialog. Uploaded images are rendered in the messege view as gallery in one line instead of individual messages underneath. Clicking on an image allows browsing through this gallery and displays the optional image captions. 
+You can drag/drop, paste or select images from disc and even optionally give individual image captions. The extension injects a "+" button at the lower right in matrix messenger (you can move it anywhere you like) in the webbrowser to open the image upload dialog. Uploaded images are rendered in the messege view as gallery in one line instead of individual messages underneath. Clicking on an image allows browsing through this gallery and displays the optional image captions. 
 
 Use the option to install as web app from the browser adress bar instead of using a desktop app in order to use the functionality even in an app-like look and feel.
 
 Licence: None (use as you like). No liability is taken by the author!
+
+## Features
+
+* Upload multiple images at once
+* Add captions to every image
+* Display the figures in one line under text of the message
+* Cycle through all images of a message
+* **Optional: show and handle threads as used from Mattermost**
 
 ## Installation
 

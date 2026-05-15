@@ -96,7 +96,8 @@
       elementTextFallback: "Element-Senden fehlgeschlagen, versuche Token/API-Fallback: {message}",
       sendNoFallback: "Senden fehlgeschlagen; kein Token/API-Fallback verfügbar.",
       sent: "Gesendet.",
-      openMatrixThread: "Matrix-Thread öffnen"
+      openMatrixThread: "Matrix-Thread öffnen",
+      showLaterThreadMessages: "sp\u00e4tere Nachrichten einblenden"
     },
     en: {
       appTitle: "Send Matrix gallery",
@@ -164,7 +165,8 @@
       elementTextFallback: "Element sending failed, trying token/API fallback: {message}",
       sendNoFallback: "Sending failed; no token/API fallback available.",
       sent: "Sent.",
-      openMatrixThread: "Open Matrix thread"
+      openMatrixThread: "Open Matrix thread",
+      showLaterThreadMessages: "Show later messages"
     }
   };
   const CHAT_MESSAGE_SELECTOR = "[data-event-id], .mx_EventTile, li, [role='listitem']";
@@ -289,6 +291,7 @@
   const threadMetadataByEventId = new Map();
   const threadGroupsByRootEventId = new Map();
   const threadDraftsByRootEventId = new Map();
+  const expandedMergedThreadRootEventIds = new Set();
   let lastMergedThreadRenderSignature = "";
   let currentGalleryBuildPass = 0;
 
@@ -2971,6 +2974,7 @@
 
     resetMergedThreadDom();
     lastMergedThreadRenderSignature = "";
+    expandedMergedThreadRootEventIds.clear();
     closeThreadSidePanel();
   }
 
@@ -3332,11 +3336,86 @@
       body: group.rootBody || t("threadStart")
     };
 
-    messages.append(...createThreadMessageRows([rootMeta, ...replies], eventElements, group.rootEventId));
+    const allItems = [rootMeta, ...replies];
+    const split = splitMergedThreadBlockReplies(rootMeta, replies, eventElements);
+    const isExpanded = expandedMergedThreadRootEventIds.has(group.rootEventId);
+    const visibleItems = isExpanded ? allItems : [rootMeta, ...split.visibleReplies];
+
+    messages.append(...createThreadMessageRows(visibleItems, eventElements, group.rootEventId));
 
     block.appendChild(messages);
 
+    if (!isExpanded && split.hiddenReplies.length > 0) {
+      block.classList.add("mg-thread-has-later-messages");
+      block.appendChild(createThreadLaterMessagesToggle(block, allItems, eventElements, group.rootEventId));
+    }
+
     return block;
+  }
+
+  function splitMergedThreadBlockReplies(rootMeta, replies, eventElements) {
+    const replyItems = replies
+      .filter(item => item?.eventId)
+      .sort((a, b) => compareThreadItemsByTimeThenDom(a, b, eventElements));
+    const threadItems = [rootMeta, ...replyItems]
+      .filter(item => item?.eventId)
+      .sort((a, b) => compareThreadItemsByTimeThenDom(a, b, eventElements));
+    const threadEventIds = new Set(threadItems.map(item => item.eventId));
+    const hiddenReplyEventIds = new Set();
+    let hideLaterReplies = false;
+
+    for (const reply of replyItems) {
+      const previousThreadItem = findPreviousThreadItem(reply, threadItems);
+
+      if (!hideLaterReplies && previousThreadItem) {
+        hideLaterReplies = hasVisibleNonThreadMessageBetweenThreadItems(
+          previousThreadItem,
+          reply,
+          eventElements,
+          threadEventIds
+        );
+      }
+
+      if (hideLaterReplies) {
+        hiddenReplyEventIds.add(reply.eventId);
+      }
+    }
+
+    return {
+      visibleReplies: replies.filter(item => item?.eventId && !hiddenReplyEventIds.has(item.eventId)),
+      hiddenReplies: replies.filter(item => item?.eventId && hiddenReplyEventIds.has(item.eventId))
+    };
+  }
+
+  function createThreadLaterMessagesToggle(block, items, eventElements, rootEventId) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "mg-thread-later-toggle";
+    button.textContent = "...";
+    button.title = t("showLaterThreadMessages");
+    button.setAttribute("aria-label", t("showLaterThreadMessages"));
+    button.dataset.i18nTitle = "showLaterThreadMessages";
+    button.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      revealMergedThreadLaterMessages(block, items, eventElements, rootEventId);
+    });
+    return button;
+  }
+
+  function revealMergedThreadLaterMessages(block, items, eventElements, rootEventId) {
+    if (!rootEventId) return;
+
+    expandedMergedThreadRootEventIds.add(rootEventId);
+    block.classList.remove("mg-thread-has-later-messages");
+    block.classList.add("mg-thread-later-expanded");
+
+    const messages = block.querySelector(".mg-thread-merged-messages");
+    if (messages) {
+      messages.replaceChildren(...createThreadMessageRows(items, eventElements, rootEventId));
+    }
+
+    block.querySelector(".mg-thread-later-toggle")?.remove();
   }
 
   function findDirectChildForParent(anchor, parent) {
