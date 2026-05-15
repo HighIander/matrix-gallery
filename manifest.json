@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Matrix Gallery",
-  "version": "0.31.0",
+  "version": "0.35.4",
   "description": "Matrix gallery extension with plus button for gallery upload.",
   "permissions": [
     "storage",

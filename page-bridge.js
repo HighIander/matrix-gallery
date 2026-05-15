@@ -11,6 +11,12 @@
   const GALLERY_RESPONSE = "matrix-gallery-sender-gallery-response";
   const MEDIA_REQUEST = "matrix-gallery-sender-media-request";
   const MEDIA_RESPONSE = "matrix-gallery-sender-media-response";
+  const THREAD_REQUEST = "matrix-gallery-sender-thread-request";
+  const THREAD_RESPONSE = "matrix-gallery-sender-thread-response";
+  const EVENT_ACTION_REQUEST = "matrix-gallery-sender-event-action-request";
+  const EVENT_ACTION_RESPONSE = "matrix-gallery-sender-event-action-response";
+  const OPEN_THREAD_REQUEST = "matrix-gallery-sender-open-thread-request";
+  const OPEN_THREAD_RESPONSE = "matrix-gallery-sender-open-thread-response";
 
   let lastSession = null;
   let installed = false;
@@ -536,6 +542,42 @@
     return `<span data-mg-gallery="${escapeHtml(encoded)}" style="display:none"></span>`;
   }
 
+
+  async function sendMessageViaClient(client, roomId, content, threadTarget = null) {
+    const relatedContent = applyThreadRelationToContent(content, threadTarget);
+
+    if (threadTarget?.rootEventId) {
+      if (supportsThreadIdSendSignature(client.sendMessage)) {
+        try {
+          return await client.sendMessage(roomId, threadTarget.rootEventId, relatedContent);
+        } catch (error) {
+          console.warn("Thread-id sendMessage call failed, falling back to relation-only send:", error);
+        }
+      }
+
+      if (supportsThreadIdSendSignature(client.sendEvent)) {
+        try {
+          return await client.sendEvent(roomId, threadTarget.rootEventId, "m.room.message", relatedContent);
+        } catch (error) {
+          console.warn("Thread-id sendEvent call failed, falling back to relation-only send:", error);
+        }
+      }
+    }
+
+    return client.sendMessage(roomId, relatedContent);
+  }
+
+  function supportsThreadIdSendSignature(fn) {
+    if (typeof fn !== "function") return false;
+
+    try {
+      const source = Function.prototype.toString.call(fn);
+      return fn.length >= 4 || /threadId|threadRoot|thread/i.test(source);
+    } catch {
+      return fn.length >= 4;
+    }
+  }
+
   async function sendGalleryViaClient(payload) {
     const client = findClient();
 
@@ -554,12 +596,25 @@
       throw new Error("Missing room id");
     }
 
+    const threadTarget = payload.threadTarget?.rootEventId ? { ...payload.threadTarget } : null;
+
+    if (payload.plainTextOnly) {
+      const result = await sendMessageViaClient(client, roomId, {
+        msgtype: "m.text",
+        body: payload.text || ""
+      }, threadTarget);
+
+      return {
+        eventId: eventIdFromSendResult(result)
+      };
+    }
+
     const galleryId = payload.galleryId || `mg_gallery_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const count = Array.isArray(payload.files) ? payload.files.length : 0;
     const uploadedUrls = [];
 
     if (payload.text) {
-      await client.sendMessage(roomId, {
+      const textResult = await sendMessageViaClient(client, roomId, {
         msgtype: "m.text",
         body: payload.text,
         format: "org.matrix.custom.html",
@@ -569,7 +624,9 @@
           type: "caption",
           count
         }
-      });
+      }, threadTarget);
+
+      updateThreadReplyTargetFromSendResult(threadTarget, textResult);
     }
 
     for (let i = 0; i < count; i++) {
@@ -583,7 +640,7 @@
 
       postSendProgress(payload.requestId, `Sende Bild ${i + 1}/${count} ...`);
 
-      await client.sendMessage(roomId, {
+      const imageResult = await sendMessageViaClient(client, roomId, {
         msgtype: "m.image",
         body: meta.name || file.name || `image-${i + 1}`,
         url: mxcUrl,
@@ -601,12 +658,247 @@
           caption: meta.caption || "",
           url: mxcUrl
         }
-      });
+      }, threadTarget);
+
+      updateThreadReplyTargetFromSendResult(threadTarget, imageResult);
     }
 
     return {
       galleryId,
       uploadedUrls
+    };
+  }
+
+  function applyThreadRelationToContent(content, threadTarget) {
+    if (!threadTarget?.rootEventId) return content;
+
+    return {
+      ...content,
+      "m.relates_to": {
+        rel_type: "m.thread",
+        event_id: threadTarget.rootEventId,
+        is_falling_back: true,
+        "m.in_reply_to": {
+          event_id: threadTarget.replyToEventId || threadTarget.rootEventId
+        }
+      }
+    };
+  }
+
+  function updateThreadReplyTargetFromSendResult(threadTarget, result) {
+    if (!threadTarget) return;
+
+    const eventId = eventIdFromSendResult(result);
+
+    if (eventId) {
+      threadTarget.replyToEventId = eventId;
+    }
+  }
+
+  function eventIdFromSendResult(result) {
+    return result?.event_id ||
+      result?.eventId ||
+      result?.event?.event_id ||
+      result?.getId?.() ||
+      "";
+  }
+
+  function tryOpenNativeThread(payload) {
+    const client = findClient();
+    const roomIdOrAlias = payload.room || "";
+    const rootEventId = payload.rootEventId || "";
+    const preferredEventId = payload.preferredEventId || rootEventId;
+
+    if (!rootEventId) return false;
+
+    const room = client ? getRoomByIdOrAlias(client, roomIdOrAlias) : null;
+    const roomId = room?.roomId || roomIdOrAlias;
+    const rootEvent = findRoomEventById(room, rootEventId);
+    const preferredEvent = findRoomEventById(room, preferredEventId) || rootEvent;
+
+    if (!rootEvent) return false;
+
+    const dispatchers = findDispatchers();
+    const payloads = [
+      {
+        action: "show_thread",
+        rootEvent,
+        initialEvent: preferredEvent && preferredEvent !== rootEvent ? preferredEvent : undefined,
+        scroll_into_view: Boolean(preferredEvent && preferredEvent !== rootEvent),
+        highlighted: Boolean(preferredEvent && preferredEvent !== rootEvent),
+        push: false
+      },
+      {
+        action: "show_thread",
+        room_id: roomId,
+        event_id: rootEventId,
+        rootEvent,
+        initialEvent: preferredEvent && preferredEvent !== rootEvent ? preferredEvent : undefined,
+        root_event: rootEvent,
+        initial_event: preferredEvent,
+        root_event_id: rootEventId,
+        initial_event_id: preferredEventId,
+        thread_id: rootEventId,
+        scroll_into_view: true,
+        highlighted: true,
+        push: false
+      },
+      {
+        action: "view_room",
+        room_id: roomId,
+        event_id: rootEventId,
+        highlighted: true,
+        metricsTrigger: undefined
+      }
+    ];
+
+    for (const dispatcher of dispatchers) {
+      for (const actionPayload of payloads) {
+        try {
+          if (typeof dispatcher.dispatch === "function") {
+            dispatcher.dispatch(actionPayload);
+            return true;
+          }
+
+          if (typeof dispatcher.fire === "function") {
+            dispatcher.fire(actionPayload.action, actionPayload);
+            return true;
+          }
+        } catch {}
+      }
+    }
+
+    return false;
+  }
+
+  function findDispatchers() {
+    const candidates = [
+      window.mxDispatcher,
+      window.mxReactSdk?.dis,
+      window.mxReactSdk?.default?.dis,
+      window.matrixDispatcher,
+      window.dispatcher,
+      window.mxDispatcher?.default,
+      window.defaultDispatcher
+    ];
+
+    const modules = collectWebpackModules(1800);
+    for (const exp of modules) {
+      candidates.push(
+        exp?.defaultDispatcher,
+        exp?.dispatcher,
+        exp?.dis,
+        exp?.default,
+        exp?.default?.defaultDispatcher,
+        exp?.default?.dispatcher,
+        exp?.default?.dis
+      );
+    }
+
+    return uniqueObjects(candidates)
+      .filter(candidate => candidate && (typeof candidate.dispatch === "function" || typeof candidate.fire === "function"));
+  }
+
+  function collectWebpackModules(limit = 1800) {
+    const chunkKeys = Object.keys(window).filter(key => key.startsWith("webpackChunk"));
+    const modules = [];
+
+    for (const chunkKey of chunkKeys) {
+      const chunk = window[chunkKey];
+      if (!Array.isArray(chunk)) continue;
+
+      try {
+        chunk.push([
+          [Math.random()],
+          {},
+          req => {
+            try {
+              if (req?.c) {
+                for (const mod of Object.values(req.c).slice(0, limit)) {
+                  if (mod?.exports) modules.push(mod.exports);
+                }
+              }
+            } catch {}
+          }
+        ]);
+      } catch {}
+    }
+
+    return modules;
+  }
+
+  function uniqueObjects(values) {
+    const seen = new Set();
+    const result = [];
+
+    for (const value of values) {
+      if (!value || seen.has(value)) continue;
+      seen.add(value);
+      result.push(value);
+    }
+
+    return result;
+  }
+
+  function findRoomEventById(room, eventId) {
+    if (!room || !eventId) return null;
+
+    try {
+      const event = room.findEventById?.(eventId);
+      if (event) return event;
+    } catch {}
+
+    const events = collectRoomEventObjects(room);
+    return events.find(event => (event.getId?.() || event.event?.event_id || event.event_id || "") === eventId) || null;
+  }
+
+  async function performEventActionViaClient(payload) {
+    const client = findClient();
+
+    if (!client) {
+      throw new Error("No live MatrixClient found in Element page context");
+    }
+
+    let roomId = payload.room;
+
+    if (roomId && roomId.startsWith("#") && typeof client.getRoomIdForAlias === "function") {
+      const aliasResult = await client.getRoomIdForAlias(roomId);
+      roomId = aliasResult?.room_id || aliasResult?.roomId || roomId;
+    }
+
+    if (!roomId || !payload.eventId) {
+      throw new Error("Missing room id or event id");
+    }
+
+    if (payload.action === "delete") {
+      if (typeof client.redactEvent !== "function") {
+        throw new Error("MatrixClient has no redactEvent method");
+      }
+
+      const result = await client.redactEvent(roomId, payload.eventId);
+      return { eventId: eventIdFromSendResult(result) };
+    }
+
+    if (payload.action === "edit") {
+      const result = await client.sendMessage(roomId, makeEditContent(payload.eventId, payload.body || ""));
+      return { eventId: eventIdFromSendResult(result) };
+    }
+
+    throw new Error(`Unsupported event action: ${payload.action}`);
+  }
+
+  function makeEditContent(eventId, body) {
+    return {
+      msgtype: "m.text",
+      body: `* ${body}`,
+      "m.new_content": {
+        msgtype: "m.text",
+        body
+      },
+      "m.relates_to": {
+        rel_type: "m.replace",
+        event_id: eventId
+      }
     };
   }
 
@@ -741,6 +1033,258 @@
     return result;
   }
 
+  function collectThreadMetadata(roomIdOrAlias) {
+    const client = findClient();
+    if (!client) return { events: [], threads: [] };
+
+    const room = getRoomByIdOrAlias(client, roomIdOrAlias);
+    if (!room) return { events: [], threads: [] };
+
+    const eventObjects = collectRoomEventObjects(room);
+    const eventById = new Map();
+
+    for (const event of eventObjects) {
+      const summary = summarizeThreadEvent(event, room, client);
+      if (!summary?.eventId) continue;
+      eventById.set(summary.eventId, summary);
+    }
+
+    const groups = new Map();
+
+    for (const summary of eventById.values()) {
+      const rootEventId = summary.threadRootId;
+      if (!rootEventId || rootEventId === summary.eventId) continue;
+
+      if (!groups.has(rootEventId)) {
+        groups.set(rootEventId, {
+          rootEventId,
+          rootBody: "",
+          rootSender: "",
+          rootSenderName: "",
+          rootTs: 0,
+          latestEventId: "",
+          events: []
+        });
+      }
+
+      groups.get(rootEventId).events.push(summary);
+    }
+
+    for (const group of groups.values()) {
+      const root = eventById.get(group.rootEventId);
+
+      if (root) {
+        group.rootBody = root.body || "";
+        group.rootSender = root.sender || "";
+        group.rootSenderName = root.senderName || "";
+        group.rootTs = root.ts || 0;
+      }
+
+      group.events.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+      const latest = group.events[group.events.length - 1];
+      group.latestEventId = latest?.eventId || group.rootEventId;
+    }
+
+    return {
+      events: Array.from(eventById.values()),
+      threads: Array.from(groups.values())
+    };
+  }
+
+  function collectRoomEventObjects(room) {
+    const events = [];
+    const seen = new Set();
+
+    const add = value => {
+      if (!value) return;
+
+      if (Array.isArray(value)) {
+        for (const item of value) add(item);
+        return;
+      }
+
+      if (value instanceof Map) {
+        for (const item of value.values()) add(item);
+        return;
+      }
+
+      if (value instanceof Set) {
+        for (const item of value.values()) add(item);
+        return;
+      }
+
+      const eventId = value.getId?.() || value.event?.event_id || value.event_id || "";
+      if (!eventId || seen.has(eventId)) return;
+
+      seen.add(eventId);
+      events.push(value);
+    };
+
+    try {
+      const liveTimeline = room.getLiveTimeline?.();
+      add(liveTimeline?.getEvents?.());
+    } catch {}
+
+    try {
+      add(room.timeline);
+    } catch {}
+
+    try {
+      const timelines = room.getLiveTimelineSet?.().getTimelines?.() || [];
+      for (const timeline of timelines) {
+        add(timeline?.getEvents?.());
+      }
+    } catch {}
+
+    try {
+      add(room.getPendingEvents?.());
+    } catch {}
+
+    try {
+      const threads = room.getThreads?.() || room.threads || [];
+      const iterable = threads instanceof Map ? Array.from(threads.values()) : Array.from(threads || []);
+
+      for (const thread of iterable) {
+        add(thread?.rootEvent || thread?.rootEventId || thread?.getRootEvent?.());
+        add(thread?.events);
+        add(thread?.timeline);
+        add(thread?.replyEvents);
+
+        const liveTimeline = thread?.getLiveTimeline?.();
+        add(liveTimeline?.getEvents?.());
+
+        const timelineSet = thread?.getTimelineSet?.();
+        const timelineSetLive = timelineSet?.getLiveTimeline?.();
+        add(timelineSetLive?.getEvents?.());
+      }
+    } catch {}
+
+    return events;
+  }
+
+  function summarizeEventMedia(content) {
+    const msgtype = content?.msgtype || "";
+    const info = content?.info || {};
+    const file = content?.file || {};
+    const gallery = content?.["de.tkluge.gallery"] || {};
+    const isImage = msgtype === "m.image" || String(info.mimetype || file.mimetype || "").toLowerCase().startsWith("image/");
+
+    if (!isImage) return null;
+
+    const mxcUrl = content.url || file.url || gallery.url || "";
+    const thumbnailMxcUrl = info.thumbnail_url || info.thumbnail_file?.url || "";
+    const downloadUrl = makeContentDownloadUrl(mxcUrl);
+    const thumbnailUrl = makeContentDownloadUrl(thumbnailMxcUrl) || downloadUrl;
+
+    return {
+      msgtype,
+      mxcUrl,
+      thumbnailMxcUrl,
+      downloadUrl,
+      thumbnailUrl,
+      filename: content.body || "",
+      mimeType: info.mimetype || file.mimetype || "",
+      width: Number(info.w || info.width || 0) || 0,
+      height: Number(info.h || info.height || 0) || 0,
+      galleryId: gallery.id || "",
+      caption: gallery.caption || ""
+    };
+  }
+
+  function summarizeThreadEvent(event, room, client) {
+    try {
+      const eventId = event.getId?.() || event.event?.event_id || event.event_id || "";
+      if (!eventId) return null;
+
+      const rawContent = event.getContent?.() || event.event?.content || event.content || {};
+      const rawRelatesTo = rawContent["m.relates_to"] || {};
+      const relation = event.getRelation?.() || {};
+      const relType = rawRelatesTo.rel_type || relation.rel_type || "";
+
+      if (relType === "m.replace") {
+        return null;
+      }
+
+      const content = event.getEffectiveContent?.() || rawContent["m.new_content"] || rawContent;
+      const relatesTo = content["m.relates_to"] || rawRelatesTo || {};
+      const thread = event.getThread?.() || event.thread || null;
+      const threadRootEvent = thread?.rootEvent || thread?.getRootEvent?.();
+
+      const threadRootId =
+        (relatesTo.rel_type === "m.thread" && relatesTo.event_id) ||
+        (relation.rel_type === "m.thread" && relation.event_id) ||
+        event.threadRootId ||
+        thread?.id ||
+        threadRootEvent?.getId?.() ||
+        threadRootEvent?.event?.event_id ||
+        "";
+
+      const replyToEventId =
+        relatesTo["m.in_reply_to"]?.event_id ||
+        relation["m.in_reply_to"]?.event_id ||
+        "";
+
+      const sender = event.getSender?.() || event.event?.sender || event.sender || "";
+
+      return {
+        eventId,
+        sender,
+        senderName: displayNameForSender(sender, event, room, client),
+        ts: event.getTs?.() || event.event?.origin_server_ts || event.origin_server_ts || 0,
+        msgtype: content.msgtype || "",
+        body: plainEventBody(content),
+        threadRootId,
+        replyToEventId,
+        gallery: content["de.tkluge.gallery"] || null,
+        media: summarizeEventMedia(content)
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  function displayNameForSender(sender, event, room, client) {
+    const candidates = [
+      event.sender?.name,
+      event.sender?.rawDisplayName,
+      event.sender?.displayName,
+      room?.getMember?.(sender)?.name,
+      room?.getMember?.(sender)?.rawDisplayName,
+      client?.getUser?.(sender)?.displayName
+    ];
+
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && candidate.trim()) {
+        return candidate.trim();
+      }
+    }
+
+    return shortenMatrixUserId(sender);
+  }
+
+  function shortenMatrixUserId(userId) {
+    const match = String(userId || "").match(/^@([^:]+):/);
+    return match ? match[1] : String(userId || "");
+  }
+
+  function plainEventBody(content) {
+    if (typeof content.body === "string" && content.body.trim()) {
+      return content.body.trim();
+    }
+
+    if (typeof content.formatted_body === "string" && content.formatted_body.trim()) {
+      return content.formatted_body
+        .replace(/<[^>]*>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    if (content.msgtype === "m.image") return content.body || "image";
+    if (content.msgtype === "m.file") return content.body || "file";
+
+    return "";
+  }
+
   function makeContentDownloadUrl(mxcUrl) {
     const client = findClient();
 
@@ -858,6 +1402,60 @@
           requestId,
           events
         }, window.location.origin);
+
+        return;
+      }
+
+      if (event.data.type === THREAD_REQUEST) {
+        const requestId = event.data.requestId;
+        const metadata = collectThreadMetadata(event.data.room);
+
+        window.postMessage({
+          source: SOURCE,
+          type: THREAD_RESPONSE,
+          requestId,
+          ...metadata
+        }, window.location.origin);
+
+        return;
+      }
+
+      if (event.data.type === OPEN_THREAD_REQUEST) {
+        const requestId = event.data.requestId;
+        const ok = tryOpenNativeThread(event.data);
+
+        window.postMessage({
+          source: SOURCE,
+          type: OPEN_THREAD_RESPONSE,
+          requestId,
+          ok
+        }, window.location.origin);
+
+        return;
+      }
+
+      if (event.data.type === EVENT_ACTION_REQUEST) {
+        const requestId = event.data.requestId;
+
+        performEventActionViaClient(event.data)
+          .then(result => {
+            window.postMessage({
+              source: SOURCE,
+              type: EVENT_ACTION_RESPONSE,
+              requestId,
+              ok: true,
+              result
+            }, window.location.origin);
+          })
+          .catch(error => {
+            window.postMessage({
+              source: SOURCE,
+              type: EVENT_ACTION_RESPONSE,
+              requestId,
+              ok: false,
+              error: error?.message || String(error)
+            }, window.location.origin);
+          });
 
         return;
       }

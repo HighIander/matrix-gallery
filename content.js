@@ -21,7 +21,164 @@
   const PAGE_BRIDGE_GALLERY_RESPONSE = "matrix-gallery-sender-gallery-response";
   const PAGE_BRIDGE_MEDIA_REQUEST = "matrix-gallery-sender-media-request";
   const PAGE_BRIDGE_MEDIA_RESPONSE = "matrix-gallery-sender-media-response";
+  const PAGE_BRIDGE_THREAD_REQUEST = "matrix-gallery-sender-thread-request";
+  const PAGE_BRIDGE_THREAD_RESPONSE = "matrix-gallery-sender-thread-response";
+  const PAGE_BRIDGE_EVENT_ACTION_REQUEST = "matrix-gallery-sender-event-action-request";
+  const PAGE_BRIDGE_EVENT_ACTION_RESPONSE = "matrix-gallery-sender-event-action-response";
+  const PAGE_BRIDGE_OPEN_THREAD_REQUEST = "matrix-gallery-sender-open-thread-request";
+  const PAGE_BRIDGE_OPEN_THREAD_RESPONSE = "matrix-gallery-sender-open-thread-response";
+  const THREAD_HEADING_WORD_LIMIT = 8;
+  const UI_DEFAULT_LANGUAGE = "de";
+  const UI_TEXT = {
+    de: {
+      appTitle: "Matrix-Galerie senden",
+      dropHintTitle: "Bilder hier loslassen",
+      dropHintSubtitle: "werden in die Galerie übernommen",
+      settingsToggle: "⚙ Einstellungen",
+      settingsToggleTitle: "Verbindungseinstellungen",
+      languageToggle: "Switch to English",
+      close: "×",
+      homeserverLabel: "Homeserver URL",
+      tokenLabel: "Access Token",
+      roomLabel: "Raum-ID oder Alias",
+      roomPlaceholder: "wird aus der URL gelesen, falls möglich",
+      mergeThreadsLabel: "Threads im Hauptverlauf bündeln",
+      settingsSave: "Speichern",
+      threadReplyLabel: "Thread-Antwort",
+      clearThreadTargetTitle: "Thread-Ziel entfernen",
+      textMessageLabel: "Textnachricht",
+      textPlaceholder: "Nachricht senden...",
+      dropzoneTitle: "Bilder hier ablegen oder einfügen",
+      dropzoneSubtitle: "Drag & Drop, Ctrl+V oder Datei auswählen",
+      clearQueue: "Leeren",
+      sendGallery: "Text + Bilder senden",
+      emptyPreview: "Noch keine Bilder in der Warteschlange",
+      thread: "Thread",
+      threadCloseTitle: "Thread schließen",
+      threadTextareaPlaceholder: "Antwort im Thread",
+      send: "Senden",
+      tokenSearching: "Suche aktiven Matrix-Token ...",
+      tokenFoundPage: "Aktiver Token aus Element-Seitenkontext gefunden.",
+      tokenFoundStorage: "Aktiver Token automatisch aus Browser-Speicher gefunden.",
+      tokenNotFoundStorage: "Token nicht im Speicher gefunden. Versuche Element-Einstellungen automatisch auszulesen ...",
+      tokenNotPassive: "Token nicht passiv gefunden. Senden läuft bevorzugt über den laufenden Element-Client ohne Token-Auslesen.",
+      captionPrompt: "Caption für dieses Bild:",
+      captionEditTitle: "Caption bearbeiten",
+      captionAddTitle: "Caption hinzufügen",
+      removeImageTitle: "Bild aus Warteschlange entfernen",
+      deletePostedImageTitle: "Gepostetes Bild löschen",
+      deletePostedImageConfirm: "Dieses gepostete Bild löschen?",
+      sendProgressElement: "Sende über Element ...",
+      uploadingImageElement: "Lade Bild {index}/{total} über Element hoch ...",
+      missingRoom: "Bitte Raum-ID oder Alias angeben.",
+      missingContent: "Bitte Text oder mindestens ein Bild angeben.",
+      sendingElementClient: "Sende über laufenden Element-Client ...",
+      elementFallback: "Element-Client-Senden fehlgeschlagen, versuche Token/API-Fallback: {message}",
+      elementFallbackSkipped: "Senden über Element-Client fehlgeschlagen; Token/API-Fallback übersprungen, weil kein Token gesetzt ist.",
+      sendingMatrixApi: "Sende per Matrix API ...",
+      uploadingImage: "Lade Bild {index}/{total} hoch ...",
+      sendingImage: "Sende Bild {index}/{total} ...",
+      error: "Fehler: {message}",
+      freshTokenElement: "Frischer Token aus Element gefunden. Bitte erneut auf Senden klicken.",
+      freshTokenFound: "Frischer Token gefunden. Bitte erneut auf Senden klicken.",
+      uploadResponseMissingUri: "Upload-Antwort enthält keine content_uri.",
+      matrixApiError: "Matrix API Fehler: HTTP {status}",
+      threadStart: "Thread-Start",
+      threadMessage: "Thread-Nachricht",
+      threadHeader: "Thread:",
+      by: "von",
+      editMessagePrompt: "Nachricht bearbeiten:",
+      deleteMessageConfirm: "Diese Nachricht löschen?",
+      actionNoFallback: "Aktion fehlgeschlagen: kein Token/API-Fallback verfügbar.",
+      actionFailed: "Aktion fehlgeschlagen: {message}",
+      sendingThreadReply: "Sende Thread-Antwort ...",
+      elementTextFallback: "Element-Senden fehlgeschlagen, versuche Token/API-Fallback: {message}",
+      sendNoFallback: "Senden fehlgeschlagen; kein Token/API-Fallback verfügbar.",
+      sent: "Gesendet.",
+      openMatrixThread: "Matrix-Thread öffnen"
+    },
+    en: {
+      appTitle: "Send Matrix gallery",
+      dropHintTitle: "Drop images here",
+      dropHintSubtitle: "they will be added to the gallery queue",
+      settingsToggle: "⚙ Settings",
+      settingsToggleTitle: "Connection settings",
+      languageToggle: "Zu Deutsch",
+      close: "×",
+      homeserverLabel: "Homeserver URL",
+      tokenLabel: "Access token",
+      roomLabel: "Room ID or alias",
+      roomPlaceholder: "read from the URL if possible",
+      mergeThreadsLabel: "Merge threads in the main timeline",
+      settingsSave: "Save",
+      threadReplyLabel: "Thread reply",
+      clearThreadTargetTitle: "Remove thread target",
+      textMessageLabel: "Text message",
+      textPlaceholder: "Send message...",
+      dropzoneTitle: "Drop or paste images here",
+      dropzoneSubtitle: "Drag & drop, Ctrl+V, or choose files",
+      clearQueue: "Clear",
+      sendGallery: "Send text + images",
+      emptyPreview: "No images in the queue yet",
+      thread: "Thread",
+      threadCloseTitle: "Close thread",
+      threadTextareaPlaceholder: "Reply in thread",
+      send: "Send",
+      tokenSearching: "Looking for active Matrix token ...",
+      tokenFoundPage: "Active token found from the Element page context.",
+      tokenFoundStorage: "Active token found automatically from browser storage.",
+      tokenNotFoundStorage: "Token not found in storage. Trying to read Element settings automatically ...",
+      tokenNotPassive: "No token found passively. Sending will preferably use the running Element client without token extraction.",
+      captionPrompt: "Caption for this image:",
+      captionEditTitle: "Edit caption",
+      captionAddTitle: "Add caption",
+      removeImageTitle: "Remove image from queue",
+      deletePostedImageTitle: "Delete posted image",
+      deletePostedImageConfirm: "Delete this posted image?",
+      sendProgressElement: "Sending via Element ...",
+      uploadingImageElement: "Uploading image {index}/{total} via Element ...",
+      missingRoom: "Please enter a room ID or alias.",
+      missingContent: "Please enter text or add at least one image.",
+      sendingElementClient: "Sending via running Element client ...",
+      elementFallback: "Element-client sending failed, trying token/API fallback: {message}",
+      elementFallbackSkipped: "Element-client sending failed; token/API fallback skipped because no token is set.",
+      sendingMatrixApi: "Sending via Matrix API ...",
+      uploadingImage: "Uploading image {index}/{total} ...",
+      sendingImage: "Sending image {index}/{total} ...",
+      error: "Error: {message}",
+      freshTokenElement: "Fresh token found from Element. Click Send again.",
+      freshTokenFound: "Fresh token found. Click Send again.",
+      uploadResponseMissingUri: "Upload response does not contain content_uri.",
+      matrixApiError: "Matrix API error: HTTP {status}",
+      threadStart: "Thread start",
+      threadMessage: "Thread message",
+      threadHeader: "Thread:",
+      by: "by",
+      editMessagePrompt: "Edit message:",
+      deleteMessageConfirm: "Delete this message?",
+      actionNoFallback: "Action failed: no token/API fallback available.",
+      actionFailed: "Action failed: {message}",
+      sendingThreadReply: "Sending thread reply ...",
+      elementTextFallback: "Element sending failed, trying token/API fallback: {message}",
+      sendNoFallback: "Sending failed; no token/API fallback available.",
+      sent: "Sent.",
+      openMatrixThread: "Open Matrix thread"
+    }
+  };
   const CHAT_MESSAGE_SELECTOR = "[data-event-id], .mx_EventTile, li, [role='listitem']";
+  const NATIVE_THREAD_PANEL_SELECTOR = [
+    ".mx_RightPanel",
+    ".mx_ThreadPanel",
+    ".mx_ThreadView",
+    "[class*='ThreadPanel']",
+    "[class*='ThreadView']"
+  ].join(", ");
+  const EDITABLE_COMPOSER_SELECTOR = [
+    '[contenteditable="true"][role="textbox"]',
+    '.mx_BasicMessageComposer_input[contenteditable="true"]',
+    '.mx_MessageComposer_editor[contenteditable="true"]',
+    'textarea'
+  ].join(", ");
   const NON_CHAT_IMAGE_SELECTOR = [
     "#mg-panel",
     "#mg-toggle",
@@ -42,6 +199,27 @@
     "[data-testid*='avatar']",
     "[class*='Avatar']",
     "[class*='avatar']"
+  ].join(", ");
+  const EXTENSION_OWNED_SELECTOR = [
+    "#mg-panel",
+    "#mg-toggle",
+    "#mg-global-drop-hint",
+    "#mg-thread-side-panel",
+    ".mg-lightbox",
+    ".mg-inline-gallery",
+    ".mg-thread-inline-reply",
+    ".mg-thread-merged",
+    "#mg-thread-target"
+  ].join(", ");
+  const MESSAGE_CONTENT_SELECTOR = [
+    ".mx_EventTile_body",
+    ".mx_MTextBody",
+    ".mx_MImageBody",
+    "[data-testid='message_content']",
+    "[class*='EventTile_body']",
+    "[class*='MTextBody']",
+    "[class*='MImageBody']",
+    "[class*='MessageBody']"
   ].join(", ");
 
   let selectedFiles = [];
@@ -72,6 +250,20 @@
   let pasteProcessingLockUntil = 0;
   const clipboardContentHashes = new Map();
   const galleryEventMetadataByEventId = new Map();
+  const galleryScopeIds = new WeakMap();
+  let nextGalleryScopeId = 1;
+  let mergedThreadViewEnabled = false;
+  let threadViewRebuildTimer = null;
+  let currentThreadReplyTarget = null;
+  let currentThreadPanelTarget = null;
+  let lastThreadReplySource = null;
+  let uiLanguage = UI_DEFAULT_LANGUAGE;
+  let lastTimelineScrollAt = 0;
+  const threadMetadataByEventId = new Map();
+  const threadGroupsByRootEventId = new Map();
+  const threadDraftsByRootEventId = new Map();
+  let lastMergedThreadRenderSignature = "";
+  let currentGalleryBuildPass = 0;
 
   injectPageBridge();
 
@@ -86,9 +278,12 @@
     createToggleButton();
     createPanel();
     installLightboxHandler();
+    installThreadPanelHandler();
+    installThreadFocusTracking();
     installHardPasteDropInterceptors();
     installGlobalPasteAndDropHandlers();
     loadGalleryHistory();
+    installTimelineScrollActivityTracker();
     installGalleryObserver();
     installRoomChangeWatcher();
     requestPageSession();
@@ -202,13 +397,92 @@
     }
   }
 
+
+  function t(key, replacements = {}) {
+    const dictionary = UI_TEXT[uiLanguage] || UI_TEXT.de;
+    const fallback = UI_TEXT.de[key] || key;
+    let value = dictionary[key] || fallback;
+
+    for (const [name, replacement] of Object.entries(replacements)) {
+      value = value.replaceAll(`{${name}}`, String(replacement));
+    }
+
+    return value;
+  }
+
+  function translateBridgeProgressMessage(message) {
+    if (typeof message !== "string" || uiLanguage !== "en") return message;
+
+    const upload = message.match(/^Lade Bild (\d+)\/(\d+) über Element hoch \.\.\.$/);
+    if (upload) return t("uploadingImageElement", { index: upload[1], total: upload[2] });
+
+    const send = message.match(/^Sende Bild (\d+)\/(\d+) \.\.\.$/);
+    if (send) return t("sendingImage", { index: send[1], total: send[2] });
+
+    return message;
+  }
+
+  function applyUiLanguage() {
+    if (document.documentElement) {
+      document.documentElement.dataset.mgLanguage = uiLanguage;
+    }
+
+    for (const element of document.querySelectorAll("[data-i18n]")) {
+      element.textContent = t(element.dataset.i18n);
+    }
+
+    for (const element of document.querySelectorAll("[data-i18n-title]")) {
+      element.title = t(element.dataset.i18nTitle);
+    }
+
+    for (const element of document.querySelectorAll("[data-i18n-placeholder]")) {
+      element.placeholder = t(element.dataset.i18nPlaceholder);
+    }
+
+    const toggle = document.getElementById("mg-toggle");
+    if (toggle) {
+      toggle.title = t("appTitle");
+      toggle.setAttribute("aria-label", t("appTitle"));
+    }
+
+    const preview = document.getElementById("mg-preview");
+    if (preview) preview.dataset.emptyText = t("emptyPreview");
+
+    renderPreviewButtonLabels();
+  }
+
+  function setUiLanguage(language, persist = false) {
+    uiLanguage = language === "en" ? "en" : "de";
+    applyUiLanguage();
+
+    if (persist) {
+      saveCurrentPanelConfig();
+    }
+  }
+
+  function renderPreviewButtonLabels() {
+    for (const button of document.querySelectorAll(".mg-caption-image")) {
+      const hasCaption = button.dataset.hasCaption === "1";
+      button.title = hasCaption ? t("captionEditTitle") : t("captionAddTitle");
+    }
+
+    for (const button of document.querySelectorAll(".mg-remove-image")) {
+      button.title = t("removeImageTitle");
+    }
+
+    for (const button of document.querySelectorAll(".mg-posted-image-delete")) {
+      button.title = t("deletePostedImageTitle");
+      button.setAttribute("aria-label", t("deletePostedImageTitle"));
+    }
+  }
+
   function createGlobalDropHint() {
     const old = document.getElementById("mg-global-drop-hint");
     if (old) old.remove();
 
     const hint = document.createElement("div");
     hint.id = "mg-global-drop-hint";
-    hint.innerHTML = "<div><strong>Bilder hier loslassen</strong><br><span>werden in die Galerie übernommen</span></div>";
+    hint.innerHTML = `<div><strong data-i18n="dropHintTitle">${escapeHtml(t("dropHintTitle"))}</strong><br><span data-i18n="dropHintSubtitle">${escapeHtml(t("dropHintSubtitle"))}</span></div>`;
     hint.style.display = "none";
     hint.style.visibility = "hidden";
     hint.style.opacity = "0";
@@ -220,14 +494,18 @@
     const button = document.createElement("button");
     button.id = "mg-toggle";
     button.textContent = "+";
-    button.title = "Matrix-Galerie senden";
-    button.setAttribute("aria-label", "Matrix-Galerie senden");
+    button.title = t("appTitle");
+    button.setAttribute("aria-label", t("appTitle"));
 
     document.body.appendChild(button);
 
     restoreButtonPosition(button);
     makeDraggable(button);
     installButtonResizeGuard(button);
+
+    button.addEventListener("pointerdown", () => {
+      captureThreadReplySourceSnapshot();
+    }, true);
 
     button.addEventListener("click", event => {
       if (button.dataset.dragMoved === "1") {
@@ -237,7 +515,7 @@
         return;
       }
 
-      openPanel();
+      openPanelFromReplySource(captureThreadReplySourceSnapshot());
     });
   }
 
@@ -247,39 +525,56 @@
     panel.className = "mg-hidden";
 
     panel.innerHTML = `
-      <button id="mg-close" type="button">×</button>
-      <h3>Matrix-Galerie senden</h3>
+      <button id="mg-close" type="button" data-i18n="close">×</button>
+      <h3 data-i18n="appTitle">Matrix-Galerie senden</h3>
 
-      <button id="mg-settings-toggle" type="button" title="Verbindungseinstellungen">⚙ Einstellungen</button>
+      <div id="mg-top-actions">
+        <button id="mg-settings-toggle" type="button" data-i18n="settingsToggle" data-i18n-title="settingsToggleTitle" title="Verbindungseinstellungen">⚙ Einstellungen</button>
+        <button id="mg-language-toggle" type="button" data-i18n="languageToggle">Switch to English</button>
+      </div>
 
       <div id="mg-settings" class="mg-settings-hidden">
-        <label>Homeserver URL</label>
+        <label data-i18n="homeserverLabel">Homeserver URL</label>
         <input id="mg-homeserver" placeholder="https://matrix.example.org">
 
-        <label>Access Token</label>
+        <label data-i18n="tokenLabel">Access Token</label>
         <input id="mg-token" type="password" placeholder="Matrix access token">
 
-        <label>Raum-ID oder Alias</label>
-        <input id="mg-room" placeholder="wird aus der URL gelesen, falls möglich">
+        <label data-i18n="roomLabel">Raum-ID oder Alias</label>
+        <input id="mg-room" data-i18n-placeholder="roomPlaceholder" placeholder="wird aus der URL gelesen, falls möglich">
 
+        <label class="mg-settings-check">
+          <input id="mg-thread-main-view" type="checkbox">
+          <span data-i18n="mergeThreadsLabel">Threads im Hauptverlauf bündeln</span>
+        </label>
+
+        <button id="mg-settings-save" type="button" data-i18n="settingsSave">Speichern</button>
         <div id="mg-status"></div>
       </div>
 
-      <label>Textnachricht</label>
-      <textarea id="mg-text" placeholder="Text vor der Bildergalerie"></textarea>
+      <div id="mg-thread-target" class="mg-thread-target-hidden">
+        <div>
+          <span data-i18n="threadReplyLabel">Thread-Antwort</span>
+          <strong id="mg-thread-target-heading"></strong>
+        </div>
+        <button id="mg-clear-thread-target" type="button" data-i18n-title="clearThreadTargetTitle" title="Thread-Ziel entfernen">×</button>
+      </div>
+
+      <label data-i18n="textMessageLabel">Textnachricht</label>
+      <textarea id="mg-text" data-i18n-placeholder="textPlaceholder" placeholder="Nachricht senden..."></textarea>
 
       <div id="mg-upload-pane">
         <div id="mg-dropzone">
-          <div class="mg-dropzone-title">Bilder hier ablegen oder einfügen</div>
-          <div class="mg-dropzone-subtitle">Drag & Drop, Ctrl+V oder Datei auswählen</div>
+          <div class="mg-dropzone-title" data-i18n="dropzoneTitle">Bilder hier ablegen oder einfügen</div>
+          <div class="mg-dropzone-subtitle" data-i18n="dropzoneSubtitle">Drag & Drop, Ctrl+V oder Datei auswählen</div>
           <input id="mg-files" type="file" accept="image/*" multiple>
         </div>
 
         <div id="mg-preview"></div>
 
         <div id="mg-upload-actions">
-          <button id="mg-clear" type="button">Leeren</button>
-          <button id="mg-send" type="button">Text + Bilder senden</button>
+          <button id="mg-clear" type="button" data-i18n="clearQueue">Leeren</button>
+          <button id="mg-send" type="button" data-i18n="sendGallery">Text + Bilder senden</button>
         </div>
       </div>
     `;
@@ -290,6 +585,24 @@
 
     document.getElementById("mg-settings-toggle").addEventListener("click", () => {
       document.getElementById("mg-settings").classList.toggle("mg-settings-hidden");
+    });
+
+    document.getElementById("mg-language-toggle").addEventListener("click", () => {
+      setUiLanguage(uiLanguage === "en" ? "de" : "en", true);
+    });
+
+    document.getElementById("mg-settings-save").addEventListener("click", async () => {
+      await saveCurrentPanelConfig();
+      document.getElementById("mg-settings").classList.add("mg-settings-hidden");
+    });
+
+    document.getElementById("mg-thread-main-view").addEventListener("change", event => {
+      setMergedThreadViewEnabled(event.target.checked);
+      saveCurrentPanelConfig();
+    });
+
+    document.getElementById("mg-clear-thread-target").addEventListener("click", () => {
+      clearThreadReplyTarget();
     });
 
     document.getElementById("mg-files").addEventListener("change", event => {
@@ -304,10 +617,57 @@
 
     document.getElementById("mg-send").addEventListener("click", sendGallery);
 
+    applyUiLanguage();
     installPanelDropHandlers();
 
     loadConfig();
     setRoomFromCurrentUrl();
+  }
+
+  function createThreadSidePanel() {
+    const old = document.getElementById("mg-thread-side-panel");
+    if (old) old.remove();
+
+    const panel = document.createElement("aside");
+    panel.id = "mg-thread-side-panel";
+    panel.className = "mg-thread-side-hidden";
+    panel.innerHTML = `
+      <div class="mg-thread-side-header">
+        <div>
+          <span data-i18n="thread">Thread</span>
+          <strong id="mg-thread-side-heading"></strong>
+        </div>
+        <button id="mg-thread-side-close" type="button" data-i18n-title="threadCloseTitle" title="Thread schließen">×</button>
+      </div>
+      <div id="mg-thread-side-messages"></div>
+      <div class="mg-thread-side-composer">
+        <textarea id="mg-thread-side-text" data-i18n-placeholder="threadTextareaPlaceholder" placeholder="Antwort im Thread"></textarea>
+        <button id="mg-thread-side-send" type="button" data-i18n="send">Senden</button>
+      </div>
+      <div id="mg-thread-side-status"></div>
+    `;
+
+    document.body.appendChild(panel);
+    applyUiLanguage();
+
+    document.getElementById("mg-thread-side-close").addEventListener("click", closeThreadSidePanel);
+    document.getElementById("mg-thread-side-send").addEventListener("click", sendThreadSidePanelText);
+
+    const text = document.getElementById("mg-thread-side-text");
+    text.addEventListener("focus", rememberFocusedThreadReplySource);
+    text.addEventListener("input", () => {
+      rememberFocusedThreadReplySource();
+      if (currentThreadPanelTarget?.rootEventId) {
+        threadDraftsByRootEventId.set(currentThreadPanelTarget.rootEventId, text.value);
+      }
+    });
+
+    document.addEventListener("focusin", event => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest("#mg-thread-side-panel")) return;
+      if (target?.closest("#mg-panel") || target?.closest("#mg-toggle")) return;
+      lastThreadReplySource = null;
+    }, true);
   }
 
   async function openPanel(options = {}) {
@@ -318,20 +678,60 @@
 
     forceDropOverlayClosed();
 
+    if (options.threadTarget) {
+      setThreadReplyTarget(options.threadTarget);
+    } else if (options.preserveThreadTarget !== true) {
+      clearThreadReplyTarget();
+    }
+
     setRoomFromCurrentUrl();
     await autofillSessionData(true);
 
     forceDropOverlayClosed();
 
     if (options.copyComposerText !== false) {
-      const composerText = getMatrixComposerText();
-      if (composerText) {
-        const textBox = document.getElementById("mg-text");
-        if (!textBox.value.trim()) {
-          textBox.value = composerText;
-        }
+      const composerText = getOpenPanelSourceText(options);
+      const textBox = document.getElementById("mg-text");
+
+      if (options.replaceComposerText && textBox) {
+        textBox.value = composerText;
+        return;
+      }
+
+      if (composerText && textBox && !textBox.value.trim()) {
+        textBox.value = composerText;
       }
     }
+  }
+
+  function getOpenPanelSourceText(options) {
+    if (options.sourceTextElement) {
+      lastComposerElement = options.sourceTextElement;
+      return getEditableText(options.sourceTextElement).trim();
+    }
+
+    if (typeof options.sourceText === "string") {
+      return options.sourceText.trim();
+    }
+
+    return getMatrixComposerText();
+  }
+
+  function openPanelFromActiveReplySource(options = {}) {
+    return openPanelFromReplySource(getActiveThreadReplySource(), options);
+  }
+
+  function openPanelFromReplySource(source, options = {}) {
+    if (!source) {
+      return openPanel(options);
+    }
+
+    return openPanel({
+      ...options,
+      threadTarget: source.threadTarget,
+      sourceTextElement: source.textElement,
+      replaceComposerText: true
+    });
   }
 
   function closePanelAndClear() {
@@ -347,6 +747,7 @@
 
     document.getElementById("mg-text").value = "";
     document.getElementById("mg-status").textContent = "";
+    clearThreadReplyTarget();
 
     const fileInput = document.getElementById("mg-files");
     if (fileInput) fileInput.value = "";
@@ -355,7 +756,7 @@
   async function autofillSessionData(forceFreshToken = false) {
     const status = document.getElementById("mg-status");
     if (status && forceFreshToken) {
-      status.textContent = "Suche aktiven Matrix-Token ...";
+      status.textContent = t("tokenSearching");
     }
 
     requestPageSession();
@@ -363,7 +764,7 @@
 
     if (pageSession?.accessToken) {
       fillSessionFieldsFromPageSession();
-      if (status && forceFreshToken) status.textContent = "Aktiver Token aus Element-Seitenkontext gefunden.";
+      if (status && forceFreshToken) status.textContent = t("tokenFoundPage");
     } else {
       const detected = await detectMatrixSession();
 
@@ -377,12 +778,12 @@
 
       if (status && forceFreshToken) {
         status.textContent = detected.accessToken
-          ? "Aktiver Token automatisch aus Browser-Speicher gefunden."
-          : "Token nicht im Speicher gefunden. Versuche Element-Einstellungen automatisch auszulesen ...";
+          ? t("tokenFoundStorage")
+          : t("tokenNotFoundStorage");
       }
 
       if (!detected.accessToken && forceFreshToken && status) {
-        status.textContent = "Token nicht passiv gefunden. Senden läuft bevorzugt über den laufenden Element-Client ohne Token-Auslesen.";
+        status.textContent = t("tokenNotPassive");
       }
     }
 
@@ -817,12 +1218,14 @@
     hardCleanupNativeDropOverlay();
     forceDropOverlayClosed();
 
-    processPastedFilesOnce(files).catch(error => {
+    const replySource = captureThreadReplySourceSnapshot();
+
+    processPastedFilesOnce(files, replySource).catch(error => {
       console.error("Paste processing failed:", error);
     });
   }
 
-  async function processPastedFilesOnce(files) {
+  async function processPastedFilesOnce(files, replySource = null) {
     const uniqueFiles = [];
 
     for (const file of files) {
@@ -838,7 +1241,7 @@
 
     if (uniqueFiles.length === 0) return;
 
-    await openPanel();
+    await openPanelFromReplySource(replySource);
     addFiles(uniqueFiles);
 
     hardCleanupNativeDropOverlay();
@@ -921,7 +1324,7 @@
       lastDropSignature = signature;
       lastDropAt = now;
 
-      openPanel();
+      openPanelFromReplySource(captureThreadReplySourceSnapshot());
       addFiles(files);
     }
 
@@ -1003,7 +1406,7 @@
       event.stopImmediatePropagation();
 
       forceDropOverlayClosed();
-      openPanel();
+      openPanelFromReplySource(captureThreadReplySourceSnapshot());
       addFiles(files);
       forceDropOverlayClosed();
     }, true);
@@ -1110,7 +1513,7 @@
 
       dropzone.classList.remove("mg-dragover");
       forceDropOverlayClosed();
-      openPanel();
+      openPanelFromReplySource(captureThreadReplySourceSnapshot());
       addFiles(files);
       forceDropOverlayClosed();
     });
@@ -1322,8 +1725,13 @@
     const element = lastComposerElement;
     if (!element) return;
 
+    const threadRootId = element.id === "mg-thread-side-text"
+      ? currentThreadPanelTarget?.rootEventId
+      : "";
+
     if ("value" in element) {
       element.value = "";
+      if (threadRootId) threadDraftsByRootEventId.delete(threadRootId);
       dispatchComposerInputEvents(element);
       return;
     }
@@ -1331,19 +1739,12 @@
     element.focus();
     element.textContent = "";
     element.innerHTML = "";
+    if (threadRootId) threadDraftsByRootEventId.delete(threadRootId);
     dispatchComposerInputEvents(element);
   }
 
   function findCurrentComposerElement() {
-    const selectors = [
-      '[contenteditable="true"][role="textbox"]',
-      '.mx_BasicMessageComposer_input[contenteditable="true"]',
-      '.mx_MessageComposer_editor[contenteditable="true"]',
-      'textarea'
-    ];
-
-    for (const selector of selectors) {
-      const element = document.querySelector(selector);
+    for (const element of document.querySelectorAll(EDITABLE_COMPOSER_SELECTOR)) {
       if (!element || element.closest("#mg-panel")) continue;
       return element;
     }
@@ -1362,18 +1763,37 @@
   async function loadConfig() {
     const config = await chrome.storage.local.get(STORAGE_KEY);
     const value = config[STORAGE_KEY] || {};
+    const mergeThreadsInMainView = value.mergeThreadsInMainView !== false;
+
+    setUiLanguage(value.language || UI_DEFAULT_LANGUAGE, false);
 
     document.getElementById("mg-homeserver").value = value.homeserver || "";
     document.getElementById("mg-token").value = value.token || "";
     document.getElementById("mg-room").value = value.room || "";
+    document.getElementById("mg-thread-main-view").checked = mergeThreadsInMainView;
+    setMergedThreadViewEnabled(mergeThreadsInMainView);
 
     await autofillSessionData(true);
   }
 
   async function saveConfig(homeserver, token, room) {
     await chrome.storage.local.set({
-      [STORAGE_KEY]: { homeserver, token, room }
+      [STORAGE_KEY]: {
+        homeserver,
+        token,
+        room,
+        mergeThreadsInMainView: Boolean(document.getElementById("mg-thread-main-view")?.checked),
+        language: uiLanguage
+      }
     });
+  }
+
+  async function saveCurrentPanelConfig() {
+    await saveConfig(
+      normalizeHomeserver(document.getElementById("mg-homeserver")?.value || ""),
+      document.getElementById("mg-token")?.value?.trim() || "",
+      document.getElementById("mg-room")?.value?.trim() || ""
+    );
   }
 
   function setRoomFromCurrentUrl() {
@@ -1391,7 +1811,7 @@
 
   function editImageCaption(file) {
     const current = imageCaptions.get(file) || "";
-    const next = prompt("Caption für dieses Bild:", current);
+    const next = prompt(t("captionPrompt"), current);
 
     if (next === null) return;
 
@@ -1431,7 +1851,8 @@
       captionBadge.className = "mg-caption-image";
       captionBadge.type = "button";
       captionBadge.textContent = imageCaptions.get(file) ? "✎" : "+";
-      captionBadge.title = imageCaptions.get(file) ? "Caption bearbeiten" : "Caption hinzufügen";
+      captionBadge.dataset.hasCaption = imageCaptions.get(file) ? "1" : "0";
+      captionBadge.title = imageCaptions.get(file) ? t("captionEditTitle") : t("captionAddTitle");
       captionBadge.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();
@@ -1448,7 +1869,7 @@
       remove.className = "mg-remove-image";
       remove.type = "button";
       remove.textContent = "×";
-      remove.title = "Bild aus Warteschlange entfernen";
+      remove.title = t("removeImageTitle");
       remove.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();
@@ -1462,7 +1883,7 @@
     });
   }
 
-  async function sendGalleryViaLiveElementClient(room, text, files, galleryId) {
+  async function sendGalleryViaLiveElementClient(room, text, files, galleryId, threadTarget = null) {
     const requestId = `mg_send_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const fileMeta = [];
 
@@ -1492,7 +1913,7 @@
 
         if (event.data.type === PAGE_BRIDGE_SEND_PROGRESS) {
           const status = document.getElementById("mg-status");
-          if (status) status.textContent = event.data.message || "Sende über Element ...";
+          if (status) status.textContent = translateBridgeProgressMessage(event.data.message) || t("sendProgressElement");
           return;
         }
 
@@ -1521,7 +1942,93 @@
         text,
         files,
         fileMeta,
-        galleryId
+        galleryId,
+        threadTarget
+      }, window.location.origin);
+    });
+  }
+
+  async function sendPlainTextViaLiveElementClient(room, text, threadTarget = null) {
+    const requestId = `mg_send_text_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error("Live Element MatrixClient text send timed out"));
+      }, 45000);
+
+      const onMessage = event => {
+        if (event.source !== window) return;
+        if (!event.data || event.data.source !== PAGE_BRIDGE_SOURCE) return;
+        if (event.data.requestId !== requestId) return;
+
+        if (event.data.type === PAGE_BRIDGE_SEND_RESPONSE) {
+          cleanup();
+
+          if (event.data.ok) {
+            resolve(event.data.result || {});
+          } else {
+            reject(new Error(event.data.error || "Live Element MatrixClient text send failed"));
+          }
+        }
+      };
+
+      const cleanup = () => {
+        clearTimeout(timeout);
+        window.removeEventListener("message", onMessage);
+      };
+
+      window.addEventListener("message", onMessage);
+
+      window.postMessage({
+        type: PAGE_BRIDGE_SEND_REQUEST,
+        requestId,
+        room,
+        text,
+        plainTextOnly: true,
+        threadTarget
+      }, window.location.origin);
+    });
+  }
+
+  async function sendEventActionViaLiveElementClient(room, action, eventId, body = "") {
+    const requestId = `mg_event_action_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error("Live Element MatrixClient event action timed out"));
+      }, 45000);
+
+      const onMessage = event => {
+        if (event.source !== window) return;
+        if (!event.data || event.data.source !== PAGE_BRIDGE_SOURCE) return;
+        if (event.data.type !== PAGE_BRIDGE_EVENT_ACTION_RESPONSE) return;
+        if (event.data.requestId !== requestId) return;
+
+        cleanup();
+
+        if (event.data.ok) {
+          resolve(event.data.result || {});
+        } else {
+          reject(new Error(event.data.error || "Live Element MatrixClient event action failed"));
+        }
+      };
+
+      const cleanup = () => {
+        clearTimeout(timeout);
+        window.removeEventListener("message", onMessage);
+      };
+
+      window.addEventListener("message", onMessage);
+
+      window.postMessage({
+        type: PAGE_BRIDGE_EVENT_ACTION_REQUEST,
+        requestId,
+        room,
+        action,
+        eventId,
+        body
       }, window.location.origin);
     });
   }
@@ -1537,22 +2044,23 @@
     const text = document.getElementById("mg-text").value.trim();
 
     if (!room) {
-      status.textContent = "Bitte Raum-ID oder Alias angeben.";
+      status.textContent = t("missingRoom");
       return;
     }
 
     if (!text && selectedFiles.length === 0) {
-      status.textContent = "Bitte Text oder mindestens ein Bild angeben.";
+      status.textContent = t("missingContent");
       return;
     }
 
     const galleryId = createGalleryId();
     const galleryCount = selectedFiles.length;
+    const threadTarget = currentThreadReplyTarget ? { ...currentThreadReplyTarget } : null;
 
     try {
-      status.textContent = "Sende über laufenden Element-Client ...";
+      status.textContent = t("sendingElementClient");
 
-      const liveResult = await sendGalleryViaLiveElementClient(room, text, [...selectedFiles], galleryId);
+      const liveResult = await sendGalleryViaLiveElementClient(room, text, [...selectedFiles], galleryId, threadTarget);
 
       if (galleryCount > 0) {
         lastSentGallery = {
@@ -1572,22 +2080,24 @@
       setTimeout(rebuildInlineGalleries, 500);
       setTimeout(rebuildInlineGalleries, 1500);
       setTimeout(rebuildInlineGalleries, 4000);
+      setTimeout(scheduleThreadViewRebuild, 900);
+      setTimeout(scheduleThreadViewRebuild, 2500);
       setTimeout(hideDropOverlay, 0);
       setTimeout(hideDropOverlay, 300);
 
       return;
     } catch (liveError) {
       console.warn("Live Element MatrixClient send failed, falling back to token API:", liveError);
-      status.textContent = `Element-Client-Senden fehlgeschlagen, versuche Token/API-Fallback: ${liveError.message}`;
+      status.textContent = t("elementFallback", { message: liveError.message });
     }
 
     if (!homeserver || !token) {
-      status.textContent = "Senden über Element-Client fehlgeschlagen; Token/API-Fallback übersprungen, weil kein Token gesetzt ist.";
+      status.textContent = t("elementFallbackSkipped");
       return;
     }
 
     try {
-      status.textContent = "Sende per Matrix API ...";
+      status.textContent = t("sendingMatrixApi");
       await saveConfig(homeserver, token, room);
 
       if (room.startsWith("#")) {
@@ -1595,7 +2105,8 @@
       }
 
       if (text) {
-        await sendTextMessage(homeserver, token, room, text, galleryId, galleryCount);
+        const textResult = await sendTextMessage(homeserver, token, room, text, galleryId, galleryCount, threadTarget);
+        updateThreadReplyTargetFromSendResult(threadTarget, textResult);
       }
 
       const sentUrls = [];
@@ -1604,13 +2115,14 @@
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i];
 
-        status.textContent = `Lade Bild ${i + 1}/${selectedFiles.length} hoch ...`;
+        status.textContent = t("uploadingImage", { index: i + 1, total: selectedFiles.length });
         const mxcUrl = await uploadMedia(homeserver, token, file);
 
-        status.textContent = `Sende Bild ${i + 1}/${selectedFiles.length} ...`;
+        status.textContent = t("sendingImage", { index: i + 1, total: selectedFiles.length });
         const info = await getImageInfo(file);
 
-        await sendImageMessage(homeserver, token, room, file, mxcUrl, info, galleryId, i, galleryCount);
+        const imageResult = await sendImageMessage(homeserver, token, room, file, mxcUrl, info, galleryId, i, galleryCount, threadTarget);
+        updateThreadReplyTargetFromSendResult(threadTarget, imageResult);
         sentUrls.push(mxcUrl);
       }
 
@@ -1632,6 +2144,8 @@
       setTimeout(rebuildInlineGalleries, 500);
       setTimeout(rebuildInlineGalleries, 1500);
       setTimeout(rebuildInlineGalleries, 4000);
+      setTimeout(scheduleThreadViewRebuild, 900);
+      setTimeout(scheduleThreadViewRebuild, 2500);
       setTimeout(hideDropOverlay, 0);
       setTimeout(hideDropOverlay, 300);
     } catch (error) {
@@ -1639,7 +2153,7 @@
 
       const retried = await retryWithFreshTokenIfUnauthorized(error);
       if (!retried) {
-        status.textContent = `Fehler: ${error.message}`;
+        status.textContent = t("error", { message: error.message });
       }
     }
   }
@@ -1656,14 +2170,14 @@
     if (pageSession?.accessToken) {
       document.getElementById("mg-token").value = pageSession.accessToken;
       if (pageSession.homeserver) document.getElementById("mg-homeserver").value = pageSession.homeserver;
-      status.textContent = "Frischer Token aus Element gefunden. Bitte erneut auf Senden klicken.";
+      status.textContent = t("freshTokenElement");
       return true;
     }
 
     const detected = await detectMatrixSession();
     if (detected.accessToken) {
       document.getElementById("mg-token").value = detected.accessToken;
-      status.textContent = "Frischer Token gefunden. Bitte erneut auf Senden klicken.";
+      status.textContent = t("freshTokenFound");
       return true;
     }
 
@@ -1702,7 +2216,7 @@
         const data = await response.json();
 
         if (!data.content_uri) {
-          throw new Error("Upload-Antwort enthält keine content_uri.");
+          throw new Error(t("uploadResponseMissingUri"));
         }
 
         return data.content_uri;
@@ -1736,58 +2250,144 @@
     return `<span data-mg-gallery="${escapeHtml(encoded)}" style="display:none"></span>`;
   }
 
-  async function sendTextMessage(homeserver, token, room, body, galleryId, galleryCount) {
+  async function sendTextMessage(homeserver, token, room, body, galleryId, galleryCount, threadTarget = null) {
     const txnId = createTxnId();
 
     const url =
       `${homeserver}/_matrix/client/v3/rooms/${encodeURIComponent(room)}` +
       `/send/m.room.message/${encodeURIComponent(txnId)}`;
 
-    await matrixFetch(url, token, {
+    const content = applyThreadRelationToContent({
+      msgtype: "m.text",
+      body,
+      format: "org.matrix.custom.html",
+      formatted_body: `${escapeHtml(body)}${makeGalleryHtmlMetadata(galleryId, "caption", -1, galleryCount)}`,
+      [GALLERY_CONTENT_KEY]: {
+        id: galleryId,
+        type: "caption",
+        count: galleryCount
+      }
+    }, threadTarget);
+
+    return matrixFetch(url, token, {
       method: "PUT",
-      body: JSON.stringify({
-        msgtype: "m.text",
-        body,
-        format: "org.matrix.custom.html",
-        formatted_body: `${escapeHtml(body)}${makeGalleryHtmlMetadata(galleryId, "caption", -1, galleryCount)}`,
-        [GALLERY_CONTENT_KEY]: {
-          id: galleryId,
-          type: "caption",
-          count: galleryCount
-        }
-      })
+      body: JSON.stringify(content)
     });
   }
 
-  async function sendImageMessage(homeserver, token, room, file, mxcUrl, info, galleryId, index, galleryCount) {
+  async function sendImageMessage(homeserver, token, room, file, mxcUrl, info, galleryId, index, galleryCount, threadTarget = null) {
     const txnId = createTxnId();
 
     const url =
       `${homeserver}/_matrix/client/v3/rooms/${encodeURIComponent(room)}` +
       `/send/m.room.message/${encodeURIComponent(txnId)}`;
 
-    await matrixFetch(url, token, {
+    const content = applyThreadRelationToContent({
+      msgtype: "m.image",
+      body: file.name,
+      url: mxcUrl,
+      info: {
+        mimetype: file.type || "image/*",
+        size: file.size,
+        w: info.width,
+        h: info.height
+      },
+      [GALLERY_CONTENT_KEY]: {
+        id: galleryId,
+        type: "image",
+        index,
+        count: galleryCount,
+        caption: imageCaptions.get(file) || "",
+        url: mxcUrl
+      }
+    }, threadTarget);
+
+    return matrixFetch(url, token, {
       method: "PUT",
-      body: JSON.stringify({
-        msgtype: "m.image",
-        body: file.name,
-        url: mxcUrl,
-        info: {
-          mimetype: file.type || "image/*",
-          size: file.size,
-          w: info.width,
-          h: info.height
-        },
-        [GALLERY_CONTENT_KEY]: {
-          id: galleryId,
-          type: "image",
-          index,
-          count: galleryCount,
-          caption: imageCaptions.get(file) || "",
-          url: mxcUrl
-        }
-      })
+      body: JSON.stringify(content)
     });
+  }
+
+  async function sendPlainTextMessage(homeserver, token, room, body, threadTarget = null) {
+    const txnId = createTxnId();
+
+    const url =
+      `${homeserver}/_matrix/client/v3/rooms/${encodeURIComponent(room)}` +
+      `/send/m.room.message/${encodeURIComponent(txnId)}`;
+
+    const content = applyThreadRelationToContent({
+      msgtype: "m.text",
+      body
+    }, threadTarget);
+
+    return matrixFetch(url, token, {
+      method: "PUT",
+      body: JSON.stringify(content)
+    });
+  }
+
+  async function editTextMessage(homeserver, token, room, eventId, body) {
+    const txnId = createTxnId();
+    const url =
+      `${homeserver}/_matrix/client/v3/rooms/${encodeURIComponent(room)}` +
+      `/send/m.room.message/${encodeURIComponent(txnId)}`;
+
+    return matrixFetch(url, token, {
+      method: "PUT",
+      body: JSON.stringify(makeEditContent(eventId, body))
+    });
+  }
+
+  async function redactMessage(homeserver, token, room, eventId) {
+    const txnId = createTxnId();
+    const url =
+      `${homeserver}/_matrix/client/v3/rooms/${encodeURIComponent(room)}` +
+      `/redact/${encodeURIComponent(eventId)}/${encodeURIComponent(txnId)}`;
+
+    return matrixFetch(url, token, {
+      method: "PUT",
+      body: JSON.stringify({})
+    });
+  }
+
+  function applyThreadRelationToContent(content, threadTarget) {
+    if (!threadTarget?.rootEventId) return content;
+
+    return {
+      ...content,
+      "m.relates_to": {
+        rel_type: "m.thread",
+        event_id: threadTarget.rootEventId,
+        is_falling_back: true,
+        "m.in_reply_to": {
+          event_id: threadTarget.replyToEventId || threadTarget.rootEventId
+        }
+      }
+    };
+  }
+
+  function updateThreadReplyTargetFromSendResult(threadTarget, result) {
+    if (!threadTarget) return;
+
+    const eventId = result?.event_id || result?.eventId || result?.event?.event_id || "";
+    if (eventId) {
+      threadTarget.replyToEventId = eventId;
+    }
+  }
+
+  function makeEditContent(eventId, body) {
+    return {
+      msgtype: "m.text",
+      body: `* ${body}`,
+      "m.new_content": {
+        msgtype: "m.text",
+        body
+      },
+      "m.relates_to": {
+        rel_type: "m.replace",
+        event_id: eventId
+      }
+    };
   }
 
   async function matrixFetch(url, token, options) {
@@ -1801,7 +2401,7 @@
     });
 
     if (!response.ok) {
-      let message = `Matrix API Fehler: HTTP ${response.status}`;
+      let message = t("matrixApiError", { status: response.status });
 
       try {
         const data = await response.json();
@@ -1846,8 +2446,19 @@
   }
 
   function installGalleryObserver() {
-    const observer = new MutationObserver(() => {
-      scheduleGalleryRebuild();
+    const observer = new MutationObserver(mutations => {
+      const externalMutations = mutations.filter(mutation => !isExtensionOwnedMutation(mutation));
+      if (externalMutations.length === 0) {
+        return;
+      }
+
+      if (externalMutations.some(shouldMutationTriggerGalleryRebuild)) {
+        scheduleGalleryRebuild();
+      }
+
+      if (externalMutations.some(shouldMutationTriggerThreadViewRebuild)) {
+        scheduleThreadViewRebuild();
+      }
     });
 
     observer.observe(document.body, {
@@ -1858,6 +2469,195 @@
     });
 
     scheduleGalleryRebuild();
+    scheduleThreadViewRebuild();
+  }
+
+  function shouldMutationTriggerGalleryRebuild(mutation) {
+    if (mutation.type === "attributes") {
+      return mutation.attributeName === "data-event-id";
+    }
+
+    if (mutation.type !== "childList") return false;
+    if (isTransientElementChromeMutation(mutation)) return false;
+
+    return mutationTouchesPotentialMessageContent(mutation);
+  }
+
+  function shouldMutationTriggerThreadViewRebuild(mutation) {
+    if (!mergedThreadViewEnabled) return false;
+
+    if (mutation.type === "attributes") {
+      return mutation.attributeName === "data-event-id";
+    }
+
+    if (mutation.type !== "childList") return false;
+    if (isTransientElementChromeMutation(mutation)) return false;
+
+    return mutationTouchesPotentialMessageContent(mutation);
+  }
+
+  function mutationTouchesPotentialMessageContent(mutation) {
+    const target = mutation.target instanceof Element ? mutation.target : mutation.target?.parentElement;
+    if (target && isOutsideObservedMessageArea(target)) return false;
+
+    const changedNodes = [
+      ...Array.from(mutation.addedNodes || []),
+      ...Array.from(mutation.removedNodes || [])
+    ];
+
+    if (changedNodes.length === 0) return false;
+
+    return changedNodes.some(node => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return normalizeSpaces(node.textContent || "").length > 0 &&
+          Boolean(target?.closest(MESSAGE_CONTENT_SELECTOR));
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) return false;
+
+      const element = node;
+      if (isExtensionOwnedElement(element)) return false;
+      if (isTransientElementChromeNode(element)) return false;
+      if (isOutsideObservedMessageArea(element)) return false;
+
+      return isPotentialMessageContentChange(element, target);
+    });
+  }
+
+  function isPotentialMessageContentChange(element, mutationTarget = null) {
+    if (!(element instanceof Element)) return false;
+
+    const contentSelector = [
+      "[data-event-id]",
+      ".mx_EventTile",
+      "[role='listitem']",
+      MESSAGE_CONTENT_SELECTOR,
+      "img",
+      "video",
+      "audio",
+      "source",
+      "time[datetime]",
+      "[data-mg-gallery]"
+    ].join(", ");
+
+    if (element.matches(contentSelector) || element.querySelector(contentSelector)) {
+      return true;
+    }
+
+    const target = mutationTarget instanceof Element ? mutationTarget : null;
+    return Boolean(target?.closest(MESSAGE_CONTENT_SELECTOR)) &&
+      normalizeSpaces(element.textContent || "").length > 0;
+  }
+
+  function isOutsideObservedMessageArea(element) {
+    return Boolean(element.closest([
+      "#mg-panel",
+      "#mg-thread-side-panel",
+      ".mg-lightbox",
+      ".mx_ContextualMenu",
+      ".mx_Dialog",
+      "[role='dialog']"
+    ].join(", ")));
+  }
+
+  function isTransientElementChromeMutation(mutation) {
+    const target = mutation.target instanceof Element ? mutation.target : mutation.target?.parentElement;
+    if (target && isTransientElementChromeNode(target)) return true;
+
+    const changedNodes = [
+      ...Array.from(mutation.addedNodes || []),
+      ...Array.from(mutation.removedNodes || [])
+    ];
+
+    return changedNodes.length > 0 && changedNodes.every(node => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return normalizeSpaces(node.textContent || "").length === 0 ||
+          Boolean(target && isTransientElementChromeNode(target));
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) return true;
+      return isTransientElementChromeNode(node);
+    });
+  }
+
+  function isTransientElementChromeNode(node) {
+    if (!(node instanceof Element)) return false;
+
+    const selector = [
+      ".mx_MessageActionBar",
+      ".mx_EventTile_contextual",
+      ".mx_EventTile_e2eIcon",
+      ".mx_ReactionsRow",
+      ".mx_Tooltip",
+      "[class*='MessageActionBar']",
+      "[class*='EventTile_contextual']",
+      "[class*='EventTile_e2eIcon']",
+      "[class*='ReactionsRow']",
+      "[class*='Tooltip']",
+      "[role='tooltip']",
+      "[role='menu']",
+      "[data-testid*='message-action']",
+      "[aria-label*='React' i]",
+      "[aria-label*='Reply' i]",
+      "[aria-label*='Thread' i]",
+      "[aria-label*='More' i]",
+      "[aria-label*='Options' i]",
+      "[aria-label*='Reagieren' i]",
+      "[aria-label*='Antwort' i]",
+      "[aria-label*='Weitere' i]",
+      "[aria-label*='Optionen' i]"
+    ].join(", ");
+
+    return node.matches(selector) || Boolean(node.closest(selector));
+  }
+
+  function isExtensionOwnedMutation(mutation) {
+    if (mutation.type === "attributes") {
+      return mutation.target instanceof Element && isExtensionOwnedElement(mutation.target);
+    }
+
+    if (mutation.type !== "childList") return false;
+
+    if (mutation.target instanceof Element && isExtensionOwnedElement(mutation.target)) {
+      return true;
+    }
+
+    const changedNodes = [
+      ...Array.from(mutation.addedNodes || []),
+      ...Array.from(mutation.removedNodes || [])
+    ];
+
+    return changedNodes.length > 0 &&
+      changedNodes.every(node => isExtensionOwnedNode(node, mutation.target));
+  }
+
+  function isExtensionOwnedNode(node, fallbackParent) {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      return isExtensionOwnedElement(node);
+    }
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      return fallbackParent instanceof Element && isExtensionOwnedElement(fallbackParent);
+    }
+
+    return false;
+  }
+
+  function isExtensionOwnedElement(element) {
+    return element.matches(EXTENSION_OWNED_SELECTOR) ||
+      Boolean(element.closest(EXTENSION_OWNED_SELECTOR));
+  }
+
+  function installTimelineScrollActivityTracker() {
+    document.addEventListener("scroll", event => {
+      const target = event.target instanceof Element ? event.target : document.scrollingElement;
+      if (target instanceof Element && isExtensionOwnedElement(target)) return;
+      lastTimelineScrollAt = Date.now();
+    }, true);
+  }
+
+  function recentlyObservedTimelineScroll(thresholdMs = 250) {
+    return Date.now() - lastTimelineScrollAt < thresholdMs;
   }
 
   function scheduleGalleryRebuild() {
@@ -1917,9 +2717,15 @@
   async function rebuildInlineGalleries() {
     galleryRebuildTimer = null;
 
+    if (recentlyObservedTimelineScroll(220)) {
+      scheduleGalleryRebuild();
+      return;
+    }
+
     await refreshGalleryMetadataFromElementTimeline();
 
-    restorePreviouslyHiddenPlaceholders();
+    const galleryScrollPositions = captureGalleryScrollPositions();
+    currentGalleryBuildPass += 1;
 
     const explicitGroups = findExplicitGalleryGroups();
     for (const group of explicitGroups) {
@@ -1929,6 +2735,1734 @@
     }
 
     buildStoredGalleryFallbacks();
+    cleanupStaleInlineGalleryRenderPass(currentGalleryBuildPass);
+    restoreGalleryScrollPositions(galleryScrollPositions);
+  }
+
+  function galleryInstanceKey(gallery) {
+    if (!(gallery instanceof Element)) return "";
+
+    const id = gallery.dataset.mgGalleryId || "";
+    const scope = gallery.dataset.mgGalleryScopeId || "";
+    const threadBlock = gallery.closest(".mg-thread-merged, .mg-thread-inline-reply");
+    const threadContext = threadBlock?.dataset.threadRootId
+      ? `${threadBlock.classList.contains("mg-thread-inline-reply") ? "inline" : "merged"}:${threadBlock.dataset.threadRootId}`
+      : "";
+    const nativeThreadPanel = gallery.closest(NATIVE_THREAD_PANEL_SELECTOR);
+    const extensionThreadPanel = gallery.closest("#mg-thread-side-panel");
+    const panelContext = nativeThreadPanel ? "native-thread" : extensionThreadPanel ? "extension-thread" : "main";
+
+    return `${panelContext}::${threadContext}::${scope}::${id}`;
+  }
+
+  function captureGalleryScrollPositions() {
+    const positions = new Map();
+
+    for (const gallery of document.querySelectorAll(".mg-inline-gallery[data-mg-gallery-id]")) {
+      positions.set(galleryInstanceKey(gallery), gallery.scrollLeft);
+    }
+
+    return positions;
+  }
+
+  function restoreGalleryScrollPositions(positions) {
+    if (!positions.size) return;
+
+    const restore = () => {
+      for (const gallery of document.querySelectorAll(".mg-inline-gallery[data-mg-gallery-id]")) {
+        const scrollLeft = positions.get(galleryInstanceKey(gallery));
+        if (!Number.isFinite(scrollLeft)) continue;
+
+        const maxScrollLeft = Math.max(0, gallery.scrollWidth - gallery.clientWidth);
+        gallery.scrollLeft = Math.min(scrollLeft, maxScrollLeft);
+      }
+    };
+
+    restore();
+    requestAnimationFrame(restore);
+  }
+
+  function setMergedThreadViewEnabled(enabled) {
+    const next = Boolean(enabled);
+    mergedThreadViewEnabled = next;
+
+    if (document.body) {
+      document.body.classList.toggle("mg-thread-view-enabled", next);
+    }
+
+    if (next) {
+      scheduleThreadViewRebuild();
+    } else {
+      teardownMergedThreadView();
+    }
+  }
+
+  function scheduleThreadViewRebuild() {
+    if (!mergedThreadViewEnabled) return;
+
+    if (threadViewRebuildTimer) {
+      clearTimeout(threadViewRebuildTimer);
+    }
+
+    threadViewRebuildTimer = setTimeout(rebuildMergedThreadView, 650);
+  }
+
+  async function refreshThreadMetadataFromElementTimeline() {
+    const requestId = `mg_thread_meta_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const room = extractRoomFromUrl();
+
+    if (!room) {
+      ingestThreadMetadata({ events: [], threads: [] });
+      return true;
+    }
+
+    return new Promise(resolve => {
+      const timeout = setTimeout(() => {
+        cleanup();
+        resolve(false);
+      }, 2500);
+
+      const onMessage = event => {
+        if (event.source !== window) return;
+        if (!event.data || event.data.source !== PAGE_BRIDGE_SOURCE) return;
+        if (event.data.type !== PAGE_BRIDGE_THREAD_RESPONSE) return;
+        if (event.data.requestId !== requestId) return;
+
+        cleanup();
+        ingestThreadMetadata(event.data);
+        resolve(true);
+      };
+
+      const cleanup = () => {
+        clearTimeout(timeout);
+        window.removeEventListener("message", onMessage);
+      };
+
+      window.addEventListener("message", onMessage);
+
+      window.postMessage({
+        type: PAGE_BRIDGE_THREAD_REQUEST,
+        requestId,
+        room
+      }, window.location.origin);
+    });
+  }
+
+  function ingestThreadMetadata(data) {
+    threadMetadataByEventId.clear();
+    threadGroupsByRootEventId.clear();
+
+    for (const item of data.events || []) {
+      if (item?.eventId) {
+        threadMetadataByEventId.set(item.eventId, item);
+
+        if (item.gallery?.id) {
+          galleryEventMetadataByEventId.set(item.eventId, item.gallery);
+        }
+      }
+    }
+
+    for (const group of data.threads || []) {
+      if (group?.rootEventId) {
+        threadGroupsByRootEventId.set(group.rootEventId, {
+          ...group,
+          events: Array.isArray(group.events) ? group.events : []
+        });
+      }
+    }
+  }
+
+  async function rebuildMergedThreadView() {
+    threadViewRebuildTimer = null;
+
+    if (!mergedThreadViewEnabled) {
+      teardownMergedThreadView();
+      return;
+    }
+
+    if (recentlyObservedTimelineScroll(280)) {
+      scheduleThreadViewRebuild();
+      return;
+    }
+
+    const refreshed = await refreshThreadMetadataFromElementTimeline();
+
+    if (!mergedThreadViewEnabled) return;
+
+    const eventElements = collectMainTimelineEventElements();
+    const renderSignature = makeMergedThreadRenderSignature(eventElements);
+    const hasRenderedThreadDom = Boolean(document.querySelector(".mg-thread-merged, .mg-thread-inline-reply"));
+
+    if (!refreshed && hasRenderedThreadDom) {
+      return;
+    }
+
+    if (renderSignature && renderSignature === lastMergedThreadRenderSignature && hasRenderedThreadDom) {
+      return;
+    }
+
+    resetMergedThreadDom();
+    buildMergedThreadBlocks(eventElements);
+    lastMergedThreadRenderSignature = renderSignature;
+    scheduleGalleryRebuild();
+  }
+
+  function makeMergedThreadRenderSignature(eventElements) {
+    const timelineEntries = collectTimelineEntriesByTime(eventElements)
+      .map(entry => `${entry.eventId}:${entry.ts || 0}`)
+      .join("|");
+
+    const threadEntries = Array.from(threadGroupsByRootEventId.values())
+      .map(group => {
+        const root = threadMetadataByEventId.get(group.rootEventId);
+        const replies = (group.events || [])
+          .filter(item => item?.eventId && item.eventId !== group.rootEventId)
+          .sort((a, b) => (a.ts || 0) - (b.ts || 0))
+          .map(item => `${item.eventId}:${item.ts || 0}:${item.gallery?.id || item.media?.galleryId || ""}:${item.media?.downloadUrl || ""}`)
+          .join(",");
+
+        return `${group.rootEventId}:${root?.ts || group.rootTs || 0}:${replies}`;
+      })
+      .sort()
+      .join("|");
+
+    return `${timelineEntries}###${threadEntries}`;
+  }
+
+  function teardownMergedThreadView() {
+    if (threadViewRebuildTimer) {
+      clearTimeout(threadViewRebuildTimer);
+      threadViewRebuildTimer = null;
+    }
+
+    resetMergedThreadDom();
+    lastMergedThreadRenderSignature = "";
+    closeThreadSidePanel();
+  }
+
+  function resetMergedThreadDom() {
+    for (const block of document.querySelectorAll(".mg-thread-merged")) {
+      block.remove();
+    }
+
+    for (const block of document.querySelectorAll(".mg-thread-inline-reply")) {
+      block.remove();
+    }
+
+    for (const element of document.querySelectorAll(".mg-thread-hidden-message")) {
+      element.classList.remove("mg-thread-hidden-message");
+    }
+
+    for (const element of document.querySelectorAll(".mg-thread-clickable-message")) {
+      element.classList.remove("mg-thread-clickable-message");
+    }
+  }
+
+  function collectMainTimelineEventElements() {
+    const result = new Map();
+
+    for (const element of document.querySelectorAll("[data-event-id]")) {
+      if (!(element instanceof Element)) continue;
+      if (isOutsideMainMessageTimeline(element)) continue;
+
+      const eventId = element.getAttribute("data-event-id");
+      if (!eventId || result.has(eventId)) continue;
+
+      const message = findMessageContainer(element);
+      if (!message || isOutsideMainMessageTimeline(message)) continue;
+
+      result.set(eventId, message);
+    }
+
+    return result;
+  }
+
+  function isOutsideMainMessageTimeline(element) {
+    return Boolean(element.closest([
+      "#mg-panel",
+      "#mg-thread-side-panel",
+      ".mg-lightbox",
+      ".mg-inline-gallery",
+      ".mg-thread-inline-reply",
+      ".mg-thread-merged",
+      ".mx_RightPanel",
+      ".mx_ThreadPanel",
+      ".mx_ThreadView",
+      ".mx_ContextualMenu",
+      ".mx_Dialog",
+      "[role='dialog']"
+    ].join(", ")));
+  }
+
+  function buildMergedThreadBlocks(eventElements) {
+    for (const group of threadGroupsByRootEventId.values()) {
+      const replies = group.events
+        .filter(item => item?.eventId && item.eventId !== group.rootEventId)
+        .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+
+      if (replies.length === 0) continue;
+
+      const rootElement = eventElements.get(group.rootEventId);
+      const firstReplyElement = replies.map(item => eventElements.get(item.eventId)).find(Boolean);
+      const anchor = rootElement || firstReplyElement;
+
+      if (!anchor) continue;
+
+      const parent = findBestGalleryParent(anchor);
+      if (!parent) continue;
+
+      const block = createMergedThreadBlock(group, replies, eventElements, rootElement);
+      const reference = findDirectChildForParent(anchor, parent);
+      applyMergedThreadIndent(block, rootElement || anchor, parent);
+
+      parent.insertBefore(block, reference);
+      buildInlineThreadReplies(group, replies, eventElements);
+
+      if (rootElement) {
+        rootElement.classList.add("mg-thread-hidden-message");
+      }
+
+      for (const item of replies) {
+        const source = eventElements.get(item.eventId);
+        if (source) {
+          source.classList.add("mg-thread-hidden-message");
+        }
+      }
+    }
+  }
+
+  function buildInlineThreadReplies(group, replies, eventElements) {
+    const rootMeta = threadMetadataByEventId.get(group.rootEventId) || {
+      eventId: group.rootEventId,
+      threadRootId: group.rootEventId,
+      sender: group.rootSender || "",
+      senderName: group.rootSenderName || "",
+      ts: group.rootTs || 0,
+      body: group.rootBody || t("threadStart")
+    };
+    const threadTitle = firstThreadLine(rootMeta.body || group.rootBody || group.rootEventId);
+    const threadAuthor = displayNameForThreadItem(rootMeta);
+    const separatedRuns = findSeparatedThreadReplyRuns(group.rootEventId, replies, eventElements, rootMeta);
+
+    for (const run of separatedRuns) {
+      const placement = findChronologicalThreadReplyPlacement(run, eventElements);
+      if (!placement?.parent) continue;
+
+      const inline = createInlineThreadReply(
+        group.rootEventId,
+        threadTitle,
+        threadAuthor,
+        run,
+        placement.indentAnchor,
+        eventElements
+      );
+
+      placement.parent.insertBefore(inline, placement.reference || null);
+    }
+  }
+
+  function findSeparatedThreadReplyRuns(rootEventId, replies, eventElements, rootMeta) {
+    const replyItems = replies
+      .filter(item => item?.eventId)
+      .sort((a, b) => compareThreadItemsByTimeThenDom(a, b, eventElements));
+
+    if (replyItems.length === 0) return [];
+
+    const threadItems = [rootMeta, ...replyItems]
+      .filter(item => item?.eventId)
+      .sort((a, b) => compareThreadItemsByTimeThenDom(a, b, eventElements));
+    const threadEventIds = new Set(threadItems.map(item => item.eventId));
+    const runs = [];
+    let activeRun = null;
+
+    for (const reply of replyItems) {
+      const previousThreadItem = findPreviousThreadItem(reply, threadItems);
+      const separatedFromPreviousThreadItem = previousThreadItem
+        ? hasVisibleNonThreadMessageBetweenThreadItems(previousThreadItem, reply, eventElements, threadEventIds)
+        : false;
+
+      if (!activeRun && !separatedFromPreviousThreadItem) {
+        continue;
+      }
+
+      if (activeRun && hasVisibleNonThreadMessageBetweenThreadItems(activeRun.at(-1), reply, eventElements, threadEventIds)) {
+        activeRun = null;
+      }
+
+      if (!activeRun) {
+        activeRun = [reply];
+        runs.push(activeRun);
+      } else {
+        activeRun.push(reply);
+      }
+    }
+
+    return runs;
+  }
+
+  function compareThreadItemsByTimeThenDom(a, b, eventElements) {
+    const at = numericTimestampForThreadItem(a, eventElements);
+    const bt = numericTimestampForThreadItem(b, eventElements);
+
+    if (at && bt && at !== bt) return at - bt;
+    if (at && !bt) return -1;
+    if (!at && bt) return 1;
+
+    return timelineElementOrder(a.eventId, b.eventId, eventElements);
+  }
+
+  function numericTimestampForThreadItem(item, eventElements) {
+    const direct = Number(item?.ts || 0);
+    if (Number.isFinite(direct) && direct > 0) return direct;
+
+    const eventId = item?.eventId || "";
+    const meta = threadMetadataByEventId.get(eventId);
+    const metaTs = Number(meta?.ts || 0);
+    if (Number.isFinite(metaTs) && metaTs > 0) return metaTs;
+
+    const element = eventElements.get(eventId);
+    return element ? timestampFromElement(element) : 0;
+  }
+
+  function findPreviousThreadItem(reply, threadItems) {
+    const index = threadItems.findIndex(item => item.eventId === reply.eventId);
+    return index > 0 ? threadItems[index - 1] : null;
+  }
+
+  function hasVisibleNonThreadMessageBetweenThreadItems(a, b, eventElements, threadEventIds) {
+    const at = numericTimestampForThreadItem(a, eventElements);
+    const bt = numericTimestampForThreadItem(b, eventElements);
+
+    if (at && bt && at !== bt) {
+      return hasVisibleNonThreadMessageBetweenTimes(at, bt, eventElements, threadEventIds);
+    }
+
+    return hasNonThreadMessageBetweenEventIds(a?.eventId, b?.eventId, eventElements, threadEventIds);
+  }
+
+  function hasVisibleNonThreadMessageBetweenTimes(aTs, bTs, eventElements, threadEventIds) {
+    const from = Math.min(aTs, bTs);
+    const to = Math.max(aTs, bTs);
+
+    for (const entry of collectTimelineEntriesByTime(eventElements)) {
+      if (!entry.ts || entry.ts <= from || entry.ts >= to) continue;
+      if (!threadEventIds.has(entry.eventId)) return true;
+    }
+
+    return false;
+  }
+
+  function findChronologicalThreadReplyPlacement(run, eventElements) {
+    const first = run?.[0];
+    const firstTs = numericTimestampForThreadItem(first, eventElements);
+    const firstSource = first?.eventId ? eventElements.get(first.eventId) : null;
+
+    if (!firstTs) {
+      if (!firstSource) return null;
+
+      const parent = findBestGalleryParent(firstSource);
+      return parent ? {
+        parent,
+        reference: findDirectChildForParent(firstSource, parent),
+        indentAnchor: firstSource
+      } : null;
+    }
+
+    const entries = collectTimelineEntriesByTime(eventElements).filter(entry => entry.ts);
+    if (entries.length === 0) {
+      if (!firstSource) return null;
+      const parent = findBestGalleryParent(firstSource);
+      return parent ? {
+        parent,
+        reference: findDirectChildForParent(firstSource, parent),
+        indentAnchor: firstSource
+      } : null;
+    }
+
+    const next = entries.find(entry => entry.ts > firstTs && entry.eventId !== first?.eventId);
+    const previous = entries.slice().reverse().find(entry => entry.ts <= firstTs && entry.eventId !== first?.eventId);
+    const anchor = next?.element || previous?.element || firstSource || entries.at(-1)?.element;
+    if (!anchor) return null;
+
+    const parent = findBestGalleryParent(anchor);
+    if (!parent) return null;
+
+    const anchorChild = findDirectChildForParent(anchor, parent);
+    const reference = next?.element ? anchorChild : anchorChild.nextSibling;
+
+    return {
+      parent,
+      reference,
+      indentAnchor: anchor
+    };
+  }
+
+  function collectTimelineEntriesByTime(eventElements) {
+    return Array.from(eventElements.entries())
+      .map(([eventId, element]) => ({
+        eventId,
+        element,
+        ts: timestampForEventElement(eventId, element)
+      }))
+      .sort((a, b) => {
+        if (a.ts && b.ts && a.ts !== b.ts) return a.ts - b.ts;
+        if (a.element === b.element) return 0;
+        return comesBefore(a.element, b.element) ? -1 : 1;
+      });
+  }
+
+  function timestampForEventElement(eventId, element) {
+    const metaTs = Number(threadMetadataByEventId.get(eventId)?.ts || 0);
+    if (Number.isFinite(metaTs) && metaTs > 0) return metaTs;
+
+    return timestampFromElement(element);
+  }
+
+  function timestampFromElement(element) {
+    if (!element) return 0;
+
+    const time = element.querySelector?.("time[datetime]");
+    const parsed = Date.parse(time?.getAttribute("datetime") || "");
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function timelineElementOrder(aEventId, bEventId, eventElements) {
+    const a = eventElements.get(aEventId);
+    const b = eventElements.get(bEventId);
+
+    if (!a || !b || a === b) return 0;
+    return comesBefore(a, b) ? -1 : 1;
+  }
+
+  function hasNonThreadMessageBetweenEventIds(aEventId, bEventId, eventElements, threadEventIds) {
+    if (!aEventId || !bEventId || aEventId === bEventId) return false;
+
+    const ordered = Array.from(eventElements.entries())
+      .filter(([eventId]) => eventId)
+      .sort((a, b) => {
+        if (a[1] === b[1]) return 0;
+        return comesBefore(a[1], b[1]) ? -1 : 1;
+      });
+
+    const aIndex = ordered.findIndex(([eventId]) => eventId === aEventId);
+    const bIndex = ordered.findIndex(([eventId]) => eventId === bEventId);
+    if (aIndex < 0 || bIndex < 0 || aIndex === bIndex) return false;
+
+    const from = Math.min(aIndex, bIndex) + 1;
+    const to = Math.max(aIndex, bIndex);
+
+    for (let i = from; i < to; i += 1) {
+      const [eventId] = ordered[i];
+      if (!threadEventIds.has(eventId)) return true;
+    }
+
+    return false;
+  }
+
+  function createInlineThreadReply(rootEventId, threadTitle, threadAuthor, items, source, eventElements) {
+    const block = document.createElement("div");
+    block.className = "mg-thread-inline-reply";
+    block.dataset.threadRootId = rootEventId;
+
+    const link = document.createElement("a");
+    link.className = "mg-thread-inline-link";
+    link.href = "#";
+    link.dataset.threadRootId = rootEventId;
+    link.innerHTML = `<strong>${escapeHtml(t("threadHeader"))}</strong> ${escapeHtml(threadTitle)} ${escapeHtml(t("by"))} ${escapeHtml(threadAuthor)}`;
+    link.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      openNativeThreadView(rootEventId, items[0]?.eventId || rootEventId);
+    });
+
+    block.appendChild(link);
+    block.append(...createThreadMessageRows(items, eventElements, rootEventId));
+
+    return block;
+  }
+
+  function createMergedThreadBlock(group, replies, eventElements, rootElement = null) {
+    const block = document.createElement("div");
+    block.className = "mg-thread-merged";
+    block.dataset.threadRootId = group.rootEventId;
+
+    const messages = document.createElement("div");
+    messages.className = "mg-thread-merged-messages";
+
+    const rootMeta = threadMetadataByEventId.get(group.rootEventId) || {
+      eventId: group.rootEventId,
+      threadRootId: group.rootEventId,
+      sender: group.rootSender || "",
+      senderName: group.rootSenderName || "",
+      ts: group.rootTs || 0,
+      body: group.rootBody || t("threadStart")
+    };
+
+    messages.append(...createThreadMessageRows([rootMeta, ...replies], eventElements, group.rootEventId));
+
+    block.appendChild(messages);
+
+    return block;
+  }
+
+  function findDirectChildForParent(anchor, parent) {
+    let node = anchor;
+
+    while (node.parentElement && node.parentElement !== parent) {
+      node = node.parentElement;
+    }
+
+    return node.parentElement === parent ? node : anchor;
+  }
+
+  function applyMergedThreadIndent(block, anchor, parent) {
+    const anchorChild = findDirectChildForParent(anchor, parent);
+    const parentRect = parent.getBoundingClientRect();
+    const anchorRect = anchorChild.getBoundingClientRect();
+    const indent = Math.max(0, Math.round(anchorRect.left - parentRect.left));
+
+    if (indent > 0) {
+      block.style.marginLeft = `${indent}px`;
+      block.style.maxWidth = `calc(100% - ${indent}px)`;
+    }
+  }
+
+  function createThreadMessageRows(items, eventElements, rootEventId = "") {
+    const rows = [];
+    let previousSender = null;
+
+    for (let index = 0; index < items.length; index += 1) {
+      const item = items[index];
+      const galleryId = threadGalleryGroupId(item);
+
+      if (galleryId) {
+        const grouped = [item];
+        let nextIndex = index + 1;
+
+        while (nextIndex < items.length && threadGalleryGroupId(items[nextIndex]) === galleryId) {
+          grouped.push(items[nextIndex]);
+          nextIndex += 1;
+        }
+
+        const senderKey = item.sender || item.senderName || "";
+        const showSender = Boolean(senderKey) && senderKey !== previousSender;
+        const source = grouped.map(entry => eventElements.get(entry.eventId)).find(Boolean);
+        const itemRootEventId = rootEventId || item.threadRootId || item.eventId || "";
+
+        rows.push(createThreadMessageRow(
+          item,
+          createThreadGalleryMessage(grouped, galleryId, source),
+          source,
+          showSender,
+          itemRootEventId
+        ));
+
+        if (senderKey) {
+          previousSender = senderKey;
+        }
+
+        index = nextIndex - 1;
+        continue;
+      }
+
+      const senderKey = item.sender || item.senderName || "";
+      const showSender = Boolean(senderKey) && senderKey !== previousSender;
+      const source = eventElements.get(item.eventId);
+      const itemRootEventId = rootEventId || item.threadRootId || item.eventId || "";
+
+      rows.push(createThreadMessageRow(
+        item,
+        source ? cloneThreadMessage(source) : createThreadFallbackMessage(item),
+        source,
+        showSender,
+        itemRootEventId
+      ));
+
+      if (senderKey) {
+        previousSender = senderKey;
+      }
+    }
+
+    return rows;
+  }
+
+  function threadGalleryGroupId(item) {
+    if (!isThreadImageItem(item)) return "";
+
+    const explicitId = item.gallery?.id || item.media?.galleryId || "";
+    if (explicitId) return explicitId;
+
+    return item.eventId ? `thread-media-${item.eventId}` : "";
+  }
+
+  function isThreadImageItem(item) {
+    const msgtype = item?.msgtype || item?.media?.msgtype || "";
+    if (msgtype === "m.image") return true;
+
+    const mimeType = item?.media?.mimeType || item?.media?.mimetype || "";
+    if (String(mimeType).toLowerCase().startsWith("image/")) return true;
+
+    return Boolean(item?.media?.downloadUrl && item?.media?.mxcUrl && String(item?.body || "").match(/\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i));
+  }
+
+  function createThreadGalleryMessage(items, galleryId, source = null) {
+    const images = items
+      .map(item => makeThreadGalleryImage(item))
+      .filter(Boolean);
+
+    if (images.length === 0 && source) {
+      const clone = cloneThreadMessage(source);
+      const image = clone.querySelector("img");
+      if (image) return clone;
+    }
+
+    if (images.length === 0) {
+      return createThreadTextFallbackMessage(items[0]);
+    }
+
+    const gallery = document.createElement("div");
+    gallery.className = "mg-inline-gallery mg-thread-media-gallery";
+    gallery.dataset.mgGalleryId = galleryId;
+    gallery.dataset.mgThreadGallery = "1";
+
+    for (const img of images) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "mg-gallery-item";
+      wrapper.appendChild(img);
+      appendPostedImageDeleteButton(wrapper, img.dataset.eventId || "");
+      gallery.appendChild(wrapper);
+    }
+
+    return gallery;
+  }
+
+  function makeThreadGalleryImage(item) {
+    const media = item?.media || {};
+    const gallery = item?.gallery || {};
+    const src = media.thumbnailUrl || media.downloadUrl || gallery.downloadUrl || gallery.url || "";
+    const fullSrc = media.downloadUrl || media.thumbnailUrl || gallery.downloadUrl || gallery.url || src;
+
+    if (!src || String(src).startsWith("mxc://")) return null;
+
+    const img = document.createElement("img");
+    img.src = src;
+    img.loading = "lazy";
+    img.decoding = "async";
+    img.dataset.mgGalleryImage = "1";
+    img.dataset.fullSrc = fullSrc;
+
+    if (item.eventId) {
+      img.dataset.eventId = item.eventId;
+    }
+
+    if (media.mxcUrl || gallery.url) {
+      img.dataset.mxcUrl = media.mxcUrl || gallery.url;
+    }
+
+    const caption = gallery.caption || media.caption || "";
+    if (caption) {
+      img.dataset.caption = caption;
+    }
+
+    const label = media.filename || item.body || "Matrix image";
+    img.alt = label;
+    img.title = label;
+
+    const width = Number(media.width || 0);
+    const height = Number(media.height || 0);
+    if (Number.isFinite(width) && width > 0) img.width = width;
+    if (Number.isFinite(height) && height > 0) img.height = height;
+
+    return img;
+  }
+
+  function createThreadMessageRow(item, messageElement, source, showSender, rootEventId = "") {
+    const row = document.createElement("div");
+    row.className = "mg-thread-message-row";
+    if (item.eventId) {
+      row.dataset.eventId = item.eventId;
+    }
+    if (rootEventId) {
+      row.dataset.threadRootId = rootEventId;
+      row.tabIndex = 0;
+      row.setAttribute("role", "button");
+      row.title = t("openMatrixThread");
+      row.addEventListener("click", event => {
+        if (event.target instanceof Element && event.target.closest("a, button, input, textarea, select")) return;
+        event.preventDefault();
+        event.stopPropagation();
+        openNativeThreadView(rootEventId, item.eventId || rootEventId);
+      });
+      row.addEventListener("keydown", event => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        event.stopPropagation();
+        openNativeThreadView(rootEventId, item.eventId || rootEventId);
+      });
+    }
+
+    const avatar = document.createElement("div");
+    avatar.className = "mg-thread-message-avatar";
+    if (showSender) {
+      avatar.appendChild(cloneThreadAvatar(source, item));
+    }
+    row.appendChild(avatar);
+
+    const content = document.createElement("div");
+    content.className = "mg-thread-message-content";
+
+    if (showSender) {
+      const sender = document.createElement("div");
+      sender.className = "mg-thread-message-sender";
+      sender.textContent = displayNameForThreadItem(item);
+      content.appendChild(sender);
+    }
+
+    const body = document.createElement("div");
+    body.className = "mg-thread-message-body";
+    body.appendChild(messageElement);
+    content.appendChild(body);
+    row.appendChild(content);
+
+    return row;
+  }
+
+  async function editThreadMessage(item) {
+    const eventId = item.eventId || "";
+    if (!eventId) return;
+
+    const current = item.body || "";
+    const next = prompt(t("editMessagePrompt"), current);
+    if (next === null) return;
+
+    const body = next.trim();
+    if (!body) return;
+
+    await performThreadMessageAction("edit", eventId, body);
+  }
+
+  async function deleteThreadMessage(item) {
+    const eventId = item.eventId || "";
+    if (!eventId) return;
+    if (!confirm(t("deleteMessageConfirm"))) return;
+
+    await performThreadMessageAction("delete", eventId);
+  }
+
+  async function performThreadMessageAction(action, eventId, body = "") {
+    const room = document.getElementById("mg-room")?.value?.trim() || extractRoomFromUrl();
+    const homeserver = normalizeHomeserver(document.getElementById("mg-homeserver")?.value || "");
+    const token = document.getElementById("mg-token")?.value?.trim() || pageSession?.accessToken || "";
+
+    if (!room) return;
+
+    try {
+      await sendEventActionViaLiveElementClient(room, action, eventId, body);
+      scheduleThreadViewRebuildAfterAction();
+      return;
+    } catch (liveError) {
+      console.warn("Live Element MatrixClient event action failed, falling back to token API:", liveError);
+    }
+
+    if (!homeserver || !token) {
+      alert(t("actionNoFallback"));
+      return;
+    }
+
+    try {
+      let resolvedRoom = room;
+      if (resolvedRoom.startsWith("#")) {
+        resolvedRoom = await resolveRoomAlias(homeserver, token, resolvedRoom);
+      }
+
+      if (action === "edit") {
+        await editTextMessage(homeserver, token, resolvedRoom, eventId, body);
+      } else if (action === "delete") {
+        await redactMessage(homeserver, token, resolvedRoom, eventId);
+      }
+
+      scheduleThreadViewRebuildAfterAction();
+    } catch (error) {
+      console.error(error);
+      alert(t("actionFailed", { message: error.message }));
+    }
+  }
+
+  function scheduleThreadViewRebuildAfterAction() {
+    setTimeout(scheduleThreadViewRebuild, 500);
+    setTimeout(scheduleThreadViewRebuild, 1500);
+    setTimeout(scheduleThreadViewRebuild, 3500);
+  }
+
+  function cloneThreadMessage(source) {
+    const contentSource = findThreadMessageContentSource(source) || source;
+    const clone = contentSource.cloneNode(true);
+    clone.classList.remove("mg-thread-hidden-message", "mg-thread-clickable-message");
+    clone.classList.add("mg-thread-message-clone");
+
+    for (const element of clone.querySelectorAll("[id]")) {
+      element.removeAttribute("id");
+    }
+
+    pruneThreadMessageChrome(clone);
+
+    for (const nested of clone.querySelectorAll(".mg-thread-merged")) {
+      nested.remove();
+    }
+
+    return clone;
+  }
+
+  function findThreadMessageContentSource(source) {
+    if (!source) return null;
+
+    return source.matches?.(MESSAGE_CONTENT_SELECTOR)
+      ? source
+      : source.querySelector?.(MESSAGE_CONTENT_SELECTOR) || null;
+  }
+
+  function pruneThreadMessageChrome(clone) {
+    const selectors = [
+      ".mx_EventTile_avatar",
+      ".mx_EventTile_sender",
+      ".mx_SenderProfile",
+      ".mx_EventTile_e2eIcon",
+      ".mx_EventTile_contextual",
+      "[data-testid='message_sender']",
+      "[data-testid='avatar-img']",
+      "[data-testid*='avatar']",
+      "[class*='Avatar']",
+      "[class*='avatar']",
+      "[class*='ThreadSummary']",
+      "[class*='ThreadPreview']",
+      "[class*='MessageActionBar']",
+      "[class*='EventTile_contextual']",
+      "button[aria-label*='Edit' i]",
+      "button[aria-label*='Delete' i]",
+      "button[aria-label*='Bearbeiten' i]",
+      "button[aria-label*='Löschen' i]"
+    ];
+
+    for (const element of clone.querySelectorAll(selectors.join(", "))) {
+      element.remove();
+    }
+  }
+
+  function cloneThreadAvatar(source, item) {
+    const avatarImage = findThreadAvatarImage(source);
+    if (avatarImage) {
+      const clone = avatarImage.cloneNode(true);
+      clone.className = "mg-thread-message-avatar-image";
+      clone.removeAttribute("id");
+      return clone;
+    }
+
+    const fallback = document.createElement("div");
+    fallback.className = "mg-thread-message-avatar-fallback";
+    fallback.textContent = avatarInitial(displayNameForThreadItem(item));
+    return fallback;
+  }
+
+  function findThreadAvatarImage(source) {
+    if (!source) return null;
+
+    const selectors = [
+      ".mx_EventTile_avatar img",
+      "[data-testid='avatar-img']",
+      "[data-testid*='avatar'] img",
+      "[class*='Avatar'] img",
+      "[class*='avatar'] img"
+    ];
+
+    for (const selector of selectors) {
+      const image = source.querySelector(selector);
+      if (image?.src || image?.currentSrc) return image;
+    }
+
+    return null;
+  }
+
+  function avatarInitial(name) {
+    const clean = normalizeSpaces(name);
+    return clean ? clean.charAt(0).toUpperCase() : "?";
+  }
+
+  function createThreadFallbackMessage(item) {
+    if (isThreadImageItem(item)) {
+      return createThreadGalleryMessage([item], threadGalleryGroupId(item));
+    }
+
+    return createThreadTextFallbackMessage(item);
+  }
+
+  function createThreadTextFallbackMessage(item) {
+    const row = document.createElement("div");
+    row.className = "mg-thread-message-fallback";
+
+    const body = document.createElement("span");
+    body.textContent = item.body || item.msgtype || t("threadMessage");
+
+    row.appendChild(body);
+    return row;
+  }
+
+  function installThreadPanelHandler() {
+    document.addEventListener("click", event => {
+      const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+      if (!mergedThreadViewEnabled || !target) return;
+      if (target.closest("#mg-panel, .mg-lightbox, button, input, textarea, select")) return;
+
+      const messageRow = target.closest(".mg-thread-message-row");
+      if (messageRow?.dataset.threadRootId) {
+        event.preventDefault();
+        event.stopPropagation();
+        openNativeThreadView(messageRow.dataset.threadRootId, messageRow.dataset.eventId || messageRow.dataset.threadRootId);
+        return;
+      }
+
+      const inlineLink = target.closest(".mg-thread-inline-link");
+      if (inlineLink?.dataset.threadRootId) {
+        event.preventDefault();
+        event.stopPropagation();
+        openNativeThreadView(inlineLink.dataset.threadRootId, inlineLink.dataset.eventId || inlineLink.dataset.threadRootId);
+        return;
+      }
+
+      const mergedThread = target.closest(".mg-thread-merged");
+      const rootEventId = mergedThread?.dataset.threadRootId || "";
+      if (!rootEventId) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      openNativeThreadView(rootEventId, rootEventId);
+    }, false);
+  }
+
+  async function openNativeThreadView(rootEventId, preferredEventId = "") {
+    if (!rootEventId) return;
+
+    const openedByBridge = await requestNativeThreadOpen(rootEventId, preferredEventId);
+    if (openedByBridge) {
+      await sleep(250);
+      if (isNativeThreadPanelOpen(rootEventId)) {
+        rememberFocusedThreadReplySource();
+        return;
+      }
+    }
+
+    const eventElements = collectMainTimelineEventElements();
+    const candidates = [preferredEventId, rootEventId]
+      .filter(Boolean)
+      .filter((value, index, array) => array.indexOf(value) === index);
+
+    for (const eventId of candidates) {
+      const source = eventElements.get(eventId) || document.querySelector(`[data-event-id="${cssEscape(eventId)}"]`);
+      if (!source) continue;
+
+      const wasHidden = source.classList.contains("mg-thread-hidden-message");
+      source.classList.remove("mg-thread-hidden-message");
+
+      try {
+        source.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+        await waitForAnimationFrame();
+        if (await clickNativeThreadControl(source)) {
+          await sleep(250);
+          rememberFocusedThreadReplySource();
+          return;
+        }
+        if (await clickNativeThreadMenuAction(source)) {
+          await sleep(250);
+          rememberFocusedThreadReplySource();
+          return;
+        }
+      } finally {
+        if (wasHidden) {
+          setTimeout(() => source.classList.add("mg-thread-hidden-message"), 400);
+        }
+      }
+    }
+  }
+
+  function isNativeThreadPanelOpen(rootEventId = "") {
+    for (const panel of document.querySelectorAll(NATIVE_THREAD_PANEL_SELECTOR)) {
+      if (!(panel instanceof Element) || !isVisibleElement(panel)) continue;
+
+      const eventIds = collectEventIdsFromElement(panel);
+      if (!rootEventId) return true;
+      if (eventIds.includes(rootEventId)) return true;
+      if (eventIds.some(eventId => getThreadRootIdForEventId(eventId) === rootEventId)) return true;
+
+      const editable = panel.querySelector(EDITABLE_COMPOSER_SELECTOR);
+      if (editable && eventIds.length > 0) return true;
+    }
+
+    return false;
+  }
+
+  function requestNativeThreadOpen(rootEventId, preferredEventId = "") {
+    const requestId = `mg_open_thread_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const room = extractRoomFromUrl();
+
+    return new Promise(resolve => {
+      const timeout = setTimeout(() => {
+        cleanup();
+        resolve(false);
+      }, 1200);
+
+      const onMessage = event => {
+        if (event.source !== window) return;
+        if (!event.data || event.data.source !== PAGE_BRIDGE_SOURCE) return;
+        if (event.data.type !== PAGE_BRIDGE_OPEN_THREAD_RESPONSE) return;
+        if (event.data.requestId !== requestId) return;
+
+        cleanup();
+        resolve(Boolean(event.data.ok));
+      };
+
+      const cleanup = () => {
+        clearTimeout(timeout);
+        window.removeEventListener("message", onMessage);
+      };
+
+      window.addEventListener("message", onMessage);
+      window.postMessage({
+        type: PAGE_BRIDGE_OPEN_THREAD_REQUEST,
+        requestId,
+        room,
+        rootEventId,
+        preferredEventId
+      }, window.location.origin);
+    });
+  }
+
+  function waitForAnimationFrame() {
+    return new Promise(resolve => requestAnimationFrame(() => resolve()));
+  }
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async function clickNativeThreadControl(source) {
+    pulseElementHover(source);
+    await waitForAnimationFrame();
+
+    const selectors = [
+      ".mx_ThreadSummary",
+      "[class*='ThreadSummary']",
+      "[class*='ThreadPreview']",
+      "[data-testid*='thread']",
+      "[aria-label*='Thread' i]",
+      "[title*='Thread' i]",
+      "[aria-label*='Antwort im Thread' i]",
+      "[title*='Antwort im Thread' i]",
+      "[aria-label*='Reply in thread' i]",
+      "[title*='Reply in thread' i]"
+    ];
+
+    const controls = collectCandidateControlsNearSource(source, selectors);
+
+    for (const control of controls) {
+      if (!(control instanceof HTMLElement) || !isElementClickable(control)) continue;
+      control.click();
+      return true;
+    }
+
+    return false;
+  }
+
+  function collectCandidateControlsNearSource(source, selectors) {
+    const controls = [];
+
+    for (const selector of selectors) {
+      try {
+        controls.push(...source.querySelectorAll(selector));
+      } catch {}
+    }
+
+    for (const selector of selectors) {
+      try {
+        controls.push(...document.querySelectorAll(selector));
+      } catch {}
+    }
+
+    return uniqueElements(controls)
+      .filter(control => control instanceof HTMLElement && !control.closest("#mg-panel, .mg-lightbox"))
+      .sort((a, b) => distanceBetweenElements(a, source) - distanceBetweenElements(b, source));
+  }
+
+  function uniqueElements(elements) {
+    const seen = new Set();
+    const result = [];
+
+    for (const element of elements) {
+      if (!element || seen.has(element)) continue;
+      seen.add(element);
+      result.push(element);
+    }
+
+    return result;
+  }
+
+  function distanceBetweenElements(a, b) {
+    const ar = a.getBoundingClientRect();
+    const br = b.getBoundingClientRect();
+    const ax = ar.left + ar.width / 2;
+    const ay = ar.top + ar.height / 2;
+    const bx = br.left + br.width / 2;
+    const by = br.top + br.height / 2;
+
+    return Math.hypot(ax - bx, ay - by);
+  }
+
+  async function clickNativeThreadMenuAction(source) {
+    pulseElementHover(source);
+    await waitForAnimationFrame();
+
+    const menuButton = findNativeEventMenuButton(source);
+    if (!menuButton) return false;
+
+    menuButton.click();
+    await sleep(160);
+
+    const menuItems = Array.from(document.querySelectorAll("[role='menuitem'], [role='button'], button, a"));
+    const threadItem = menuItems.find(item => {
+      if (!(item instanceof HTMLElement) || !isElementClickable(item)) return false;
+      const label = normalizeSpaces(`${item.textContent || ""} ${item.getAttribute("aria-label") || ""} ${item.getAttribute("title") || ""}`).toLowerCase();
+      return label.includes("reply in thread") ||
+        label.includes("thread reply") ||
+        label.includes("antwort im thread") ||
+        label.includes("im thread antworten") ||
+        label === "thread";
+    });
+
+    if (!threadItem) {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      return false;
+    }
+
+    threadItem.click();
+    return true;
+  }
+
+  function findNativeEventMenuButton(source) {
+    const selectors = [
+      "button[aria-label*='More' i]",
+      "button[aria-label*='Options' i]",
+      "button[aria-label*='Weitere' i]",
+      "button[aria-label*='Optionen' i]",
+      "[role='button'][aria-label*='More' i]",
+      "[role='button'][aria-label*='Options' i]",
+      "[role='button'][aria-label*='Weitere' i]",
+      "[role='button'][aria-label*='Optionen' i]",
+      ".mx_MessageActionBar_optionsButton",
+      "[class*='MessageActionBar'][class*='options']"
+    ];
+
+    return collectCandidateControlsNearSource(source, selectors)
+      .find(item => item instanceof HTMLElement && isElementClickable(item)) || null;
+  }
+
+  function pulseElementHover(source) {
+    const options = { bubbles: true, cancelable: true, view: window };
+    source.dispatchEvent(new MouseEvent("mouseenter", options));
+    source.dispatchEvent(new MouseEvent("mouseover", options));
+    source.dispatchEvent(new MouseEvent("mousemove", options));
+  }
+
+  function isVisibleElement(element) {
+    if (!(element instanceof Element)) return false;
+
+    const rect = element.getBoundingClientRect();
+    const style = window.getComputedStyle(element);
+    return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
+  }
+
+  function isElementClickable(element) {
+    const rect = element.getBoundingClientRect();
+    const style = window.getComputedStyle(element);
+    return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none" && style.pointerEvents !== "none";
+  }
+
+  function openThreadSidePanel(rootEventId) {
+    const target = makeThreadTarget(rootEventId);
+    if (!target) return;
+
+    currentThreadPanelTarget = target;
+    renderThreadSidePanel(target);
+
+    const text = document.getElementById("mg-thread-side-text");
+    if (text) {
+      text.focus({ preventScroll: true });
+      rememberFocusedThreadReplySource();
+    }
+  }
+
+  function closeThreadSidePanel() {
+    const panel = document.getElementById("mg-thread-side-panel");
+    const text = document.getElementById("mg-thread-side-text");
+
+    if (currentThreadPanelTarget?.rootEventId && text) {
+      threadDraftsByRootEventId.set(currentThreadPanelTarget.rootEventId, text.value);
+    }
+
+    currentThreadPanelTarget = null;
+    lastThreadReplySource = null;
+
+    if (panel) {
+      panel.classList.add("mg-thread-side-hidden");
+    }
+  }
+
+  function renderOpenThreadSidePanel() {
+    if (!currentThreadPanelTarget?.rootEventId) return;
+
+    const target = makeThreadTarget(currentThreadPanelTarget.rootEventId);
+    if (!target) {
+      closeThreadSidePanel();
+      return;
+    }
+
+    currentThreadPanelTarget = target;
+    renderThreadSidePanel(target);
+  }
+
+  function renderThreadSidePanel(target) {
+    const panel = document.getElementById("mg-thread-side-panel");
+    const heading = document.getElementById("mg-thread-side-heading");
+    const messages = document.getElementById("mg-thread-side-messages");
+    const text = document.getElementById("mg-thread-side-text");
+    const status = document.getElementById("mg-thread-side-status");
+    if (!panel || !heading || !messages || !text || !status) return;
+
+    const hadFocus = document.activeElement === text;
+    const draft = threadDraftsByRootEventId.has(target.rootEventId)
+      ? threadDraftsByRootEventId.get(target.rootEventId)
+      : text.value;
+
+    heading.textContent = target.heading;
+    status.textContent = "";
+    messages.replaceChildren(...buildThreadSidePanelMessages(target.rootEventId));
+    text.value = draft || "";
+    panel.classList.remove("mg-thread-side-hidden");
+
+    if (hadFocus) {
+      text.focus({ preventScroll: true });
+      rememberFocusedThreadReplySource();
+    }
+  }
+
+  function buildThreadSidePanelMessages(rootEventId) {
+    const eventElements = collectMainTimelineEventElements();
+    const group = threadGroupsByRootEventId.get(rootEventId);
+    const rootMeta = threadMetadataByEventId.get(rootEventId) || {
+      eventId: rootEventId,
+      threadRootId: rootEventId,
+      sender: group?.rootSender || "",
+      senderName: group?.rootSenderName || "",
+      ts: group?.rootTs || 0,
+      body: group?.rootBody || t("threadStart")
+    };
+    const replies = (group?.events || [])
+      .filter(item => item?.eventId && item.eventId !== rootEventId)
+      .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+
+    return createThreadMessageRows([rootMeta, ...replies], eventElements, rootEventId).map(row => {
+      row.classList.add("mg-thread-side-message");
+      return row;
+    });
+  }
+
+  function makeThreadTarget(rootEventId) {
+    const group = threadGroupsByRootEventId.get(rootEventId);
+    const rootMeta = threadMetadataByEventId.get(rootEventId);
+    const latest = (group?.events || [])
+      .filter(item => item?.eventId)
+      .sort((a, b) => (a.ts || 0) - (b.ts || 0))
+      .at(-1);
+
+    if (!group && !rootMeta) return null;
+
+    return {
+      rootEventId,
+      replyToEventId: latest?.eventId || group?.latestEventId || rootEventId,
+      heading: makeThreadHeading(group?.rootBody || rootMeta?.body || rootEventId)
+    };
+  }
+
+  function rememberFocusedThreadReplySource() {
+    const source = getCurrentThreadReplySource();
+    if (source) {
+      lastThreadReplySource = {
+        ...source,
+        focusedAt: Date.now()
+      };
+    }
+  }
+
+
+  function captureThreadReplySourceSnapshot() {
+    const candidates = [
+      getCurrentThreadReplySource(),
+      getThreadReplySourceFromElement(document.activeElement instanceof Element ? document.activeElement : null),
+      lastThreadReplySource
+    ];
+
+    for (const source of candidates) {
+      if (!source?.threadTarget?.rootEventId) continue;
+
+      lastThreadReplySource = {
+        textElement: source.textElement || lastThreadReplySource?.textElement || null,
+        threadTarget: { ...source.threadTarget },
+        focusedAt: Date.now()
+      };
+
+      return {
+        textElement: lastThreadReplySource.textElement,
+        threadTarget: { ...lastThreadReplySource.threadTarget }
+      };
+    }
+
+    return null;
+  }
+
+  function installThreadFocusTracking() {
+    document.addEventListener("focusin", event => {
+      const target = event.target instanceof Element ? event.target : null;
+      const source = getThreadReplySourceFromElement(target);
+
+      if (source) {
+        lastThreadReplySource = {
+          ...source,
+          focusedAt: Date.now()
+        };
+        return;
+      }
+
+      if (target?.closest("#mg-panel, #mg-toggle, .mg-lightbox")) return;
+      if (target?.closest(NATIVE_THREAD_PANEL_SELECTOR)) return;
+
+      lastThreadReplySource = null;
+    }, true);
+
+    document.addEventListener("input", event => {
+      const target = event.target instanceof Element ? event.target : null;
+      const source = getThreadReplySourceFromElement(target);
+
+      if (source) {
+        lastThreadReplySource = {
+          ...source,
+          focusedAt: Date.now()
+        };
+      }
+    }, true);
+  }
+
+  function getCurrentThreadReplySource() {
+    return getCurrentExtensionThreadReplySource() || getCurrentNativeThreadReplySource();
+  }
+
+  function getCurrentExtensionThreadReplySource() {
+    const text = document.getElementById("mg-thread-side-text");
+    if (!text || !currentThreadPanelTarget?.rootEventId) return null;
+
+    return {
+      textElement: text,
+      threadTarget: {
+        ...currentThreadPanelTarget,
+        heading: currentThreadPanelTarget.heading || t("thread")
+      }
+    };
+  }
+
+  function getCurrentNativeThreadReplySource() {
+    return getThreadReplySourceFromElement(document.activeElement instanceof Element ? document.activeElement : null);
+  }
+
+  function getThreadReplySourceFromElement(element) {
+    const editable = findEditableComposerFromElement(element);
+    if (!editable || editable.closest("#mg-panel")) return null;
+
+    const panel = editable.closest(NATIVE_THREAD_PANEL_SELECTOR);
+    if (!panel || !isVisibleElement(panel)) return null;
+
+    const eventIds = collectEventIdsFromElement(panel);
+    const rootEventId = inferThreadRootIdFromEventIds(eventIds);
+    if (!rootEventId) return null;
+
+    const latestEventId = inferLatestThreadEventId(rootEventId, eventIds);
+    const target = makeThreadTarget(rootEventId) || makeFallbackThreadTarget(rootEventId, latestEventId);
+    if (!target?.rootEventId) return null;
+
+    return {
+      textElement: editable,
+      threadTarget: {
+        ...target,
+        replyToEventId: latestEventId || target.replyToEventId || target.rootEventId
+      }
+    };
+  }
+
+  function findEditableComposerFromElement(element) {
+    if (!element) return null;
+
+    const editable = element.matches?.(EDITABLE_COMPOSER_SELECTOR)
+      ? element
+      : element.closest?.(EDITABLE_COMPOSER_SELECTOR);
+
+    if (editable instanceof HTMLElement || editable instanceof HTMLTextAreaElement) {
+      return editable;
+    }
+
+    const threadPanel = element.closest?.(NATIVE_THREAD_PANEL_SELECTOR);
+    const panelEditable = threadPanel?.querySelector?.(EDITABLE_COMPOSER_SELECTOR);
+    if (panelEditable instanceof HTMLElement || panelEditable instanceof HTMLTextAreaElement) {
+      return panelEditable;
+    }
+
+    return null;
+  }
+
+  function collectEventIdsFromElement(container) {
+    const eventIds = [];
+
+    for (const element of container.querySelectorAll("[data-event-id]")) {
+      const eventId = element.getAttribute("data-event-id") || "";
+      if (eventId && !eventIds.includes(eventId)) {
+        eventIds.push(eventId);
+      }
+    }
+
+    return eventIds;
+  }
+
+  function inferThreadRootIdFromEventIds(eventIds) {
+    for (const eventId of eventIds) {
+      const rootEventId = getThreadRootIdForEventId(eventId);
+      if (rootEventId) return rootEventId;
+    }
+
+    for (const eventId of eventIds) {
+      if (threadGroupsByRootEventId.has(eventId)) return eventId;
+    }
+
+    return eventIds[0] || "";
+  }
+
+  function getThreadRootIdForEventId(eventId) {
+    if (!eventId) return "";
+
+    const meta = threadMetadataByEventId.get(eventId);
+    if (meta?.threadRootId) return meta.threadRootId;
+
+    if (threadGroupsByRootEventId.has(eventId)) return eventId;
+
+    for (const group of threadGroupsByRootEventId.values()) {
+      if (group.rootEventId === eventId) return group.rootEventId;
+      if ((group.events || []).some(item => item?.eventId === eventId)) {
+        return group.rootEventId;
+      }
+    }
+
+    return "";
+  }
+
+  function inferLatestThreadEventId(rootEventId, visibleEventIds = []) {
+    const visibleThreadEventIds = visibleEventIds.filter(eventId => {
+      const inferredRootId = getThreadRootIdForEventId(eventId);
+      return eventId === rootEventId || inferredRootId === rootEventId;
+    });
+
+    if (visibleThreadEventIds.length > 0) {
+      return visibleThreadEventIds.at(-1);
+    }
+
+    const group = threadGroupsByRootEventId.get(rootEventId);
+    if (group?.latestEventId) return group.latestEventId;
+
+    const latest = (group?.events || [])
+      .filter(item => item?.eventId)
+      .sort((a, b) => (a.ts || 0) - (b.ts || 0))
+      .at(-1);
+
+    return latest?.eventId || rootEventId;
+  }
+
+  function makeFallbackThreadTarget(rootEventId, latestEventId = "") {
+    if (!rootEventId) return null;
+
+    const group = threadGroupsByRootEventId.get(rootEventId);
+    const rootMeta = threadMetadataByEventId.get(rootEventId);
+
+    return {
+      rootEventId,
+      replyToEventId: latestEventId || group?.latestEventId || rootEventId,
+      heading: makeThreadHeading(group?.rootBody || rootMeta?.body || rootEventId)
+    };
+  }
+
+  function getActiveThreadReplySource() {
+    const current = getCurrentThreadReplySource();
+    if (current && document.activeElement === current.textElement) {
+      lastThreadReplySource = {
+        ...current,
+        focusedAt: Date.now()
+      };
+      return current;
+    }
+
+    if (current && current.textElement?.contains?.(document.activeElement)) {
+      lastThreadReplySource = {
+        ...current,
+        focusedAt: Date.now()
+      };
+      return current;
+    }
+
+    if (lastThreadReplySource && Date.now() - lastThreadReplySource.focusedAt < 8000) {
+      return {
+        textElement: lastThreadReplySource.textElement,
+        threadTarget: lastThreadReplySource.threadTarget
+      };
+    }
+
+    return null;
+  }
+
+  async function sendThreadSidePanelText() {
+    const source = getCurrentThreadReplySource();
+    const text = source?.textElement?.value?.trim() || "";
+    const status = document.getElementById("mg-thread-side-status");
+
+    if (!source?.threadTarget?.rootEventId || !text) return;
+
+    await autofillSessionData(true);
+
+    let room = document.getElementById("mg-room").value.trim();
+    const homeserver = normalizeHomeserver(document.getElementById("mg-homeserver").value);
+    const token = document.getElementById("mg-token").value.trim();
+
+    if (!room) {
+      if (status) status.textContent = t("missingRoom");
+      return;
+    }
+
+    try {
+      if (status) status.textContent = t("sendingThreadReply");
+      const result = await sendPlainTextViaLiveElementClient(room, text, source.threadTarget);
+      updateThreadReplyTargetFromSendResult(source.threadTarget, result);
+      finishThreadSidePanelSend(source, result);
+      return;
+    } catch (liveError) {
+      console.warn("Live Element MatrixClient text send failed, falling back to token API:", liveError);
+      if (status) status.textContent = t("elementTextFallback", { message: liveError.message });
+    }
+
+    if (!homeserver || !token) {
+      if (status) status.textContent = t("sendNoFallback");
+      return;
+    }
+
+    try {
+      await saveConfig(homeserver, token, room);
+
+      if (room.startsWith("#")) {
+        room = await resolveRoomAlias(homeserver, token, room);
+      }
+
+      const result = await sendPlainTextMessage(homeserver, token, room, text, source.threadTarget);
+      updateThreadReplyTargetFromSendResult(source.threadTarget, result);
+      finishThreadSidePanelSend(source, result);
+    } catch (error) {
+      console.error(error);
+      if (status) status.textContent = t("error", { message: error.message });
+    }
+  }
+
+  function finishThreadSidePanelSend(source, result) {
+    const status = document.getElementById("mg-thread-side-status");
+    const eventId = result?.eventId || result?.event_id || "";
+
+    source.textElement.value = "";
+    threadDraftsByRootEventId.delete(source.threadTarget.rootEventId);
+
+    currentThreadPanelTarget = {
+      ...source.threadTarget,
+      replyToEventId: eventId || source.threadTarget.replyToEventId
+    };
+
+    rememberFocusedThreadReplySource();
+    if (status) status.textContent = t("sent");
+
+    setTimeout(scheduleThreadViewRebuild, 500);
+    setTimeout(scheduleThreadViewRebuild, 1500);
+  }
+
+  function setThreadReplyTarget(target) {
+    if (!target?.rootEventId) {
+      clearThreadReplyTarget();
+      return;
+    }
+
+    currentThreadReplyTarget = {
+      rootEventId: target.rootEventId,
+      replyToEventId: target.replyToEventId || target.rootEventId,
+      heading: target.heading || target.rootEventId
+    };
+
+    renderThreadReplyTarget();
+  }
+
+  function clearThreadReplyTarget() {
+    currentThreadReplyTarget = null;
+    renderThreadReplyTarget();
+  }
+
+  function renderThreadReplyTarget() {
+    const target = document.getElementById("mg-thread-target");
+    const heading = document.getElementById("mg-thread-target-heading");
+    if (!target || !heading) return;
+
+    if (!currentThreadReplyTarget) {
+      target.classList.add("mg-thread-target-hidden");
+      heading.textContent = "";
+      return;
+    }
+
+    heading.textContent = currentThreadReplyTarget.heading || currentThreadReplyTarget.rootEventId;
+    target.classList.remove("mg-thread-target-hidden");
+  }
+
+  function makeThreadHeading(value) {
+    const words = normalizeSpaces(value).split(" ").filter(Boolean);
+    const heading = words.slice(0, THREAD_HEADING_WORD_LIMIT).join(" ");
+    return heading ? `Thread: ${heading}${words.length > THREAD_HEADING_WORD_LIMIT ? " ..." : ""}` : t("thread");
+  }
+
+  function firstThreadLine(value) {
+    const line = String(value || "")
+      .split(/\r?\n/)
+      .map(part => normalizeSpaces(part))
+      .find(Boolean);
+
+    return line || t("thread");
+  }
+
+  function displayNameForThreadItem(item) {
+    return item.senderName || shortenMatrixUserId(item.sender) || "Unbekannt";
+  }
+
+  function visibleTextFromElement(element) {
+    return normalizeSpaces(element.innerText || element.textContent || "");
+  }
+
+  function normalizeSpaces(value) {
+    return String(value || "").replace(/\s+/g, " ").trim();
+  }
+
+  function shortenMatrixUserId(userId) {
+    const match = String(userId || "").match(/^@([^:]+):/);
+    return match ? match[1] : String(userId || "");
   }
 
   function restorePreviouslyHiddenPlaceholders() {
@@ -1936,7 +4470,7 @@
       element.classList.remove("mg-gallery-placeholder");
     }
 
-    for (const gallery of document.querySelectorAll(".mg-inline-gallery")) {
+    for (const gallery of document.querySelectorAll(".mg-inline-gallery[data-mg-gallery-scope-id]")) {
       gallery.remove();
     }
   }
@@ -1950,15 +4484,20 @@
 
       if (!id) continue;
 
-      if (!groups.has(id)) {
-        groups.set(id, {
+      const scope = galleryScopeElement(item.element);
+      const scopeId = galleryScopeKey(scope);
+      const key = `${scopeId}::${id}`;
+
+      if (!groups.has(key)) {
+        groups.set(key, {
           id,
+          scopeId,
           anchor: item.element,
           images: []
         });
       }
 
-      const group = groups.get(id);
+      const group = groups.get(key);
       group.images.push(item);
 
       if (comesBefore(item.element, group.anchor)) {
@@ -1984,13 +4523,15 @@
     const result = [];
 
     for (const container of containers) {
-      if (container.closest("#mg-panel") || container.closest(".mg-lightbox") || container.closest(".mg-inline-gallery")) continue;
-
-      const img = findMainImage(container);
-      if (!img) continue;
+      if (container.closest("#mg-panel") || container.closest("#mg-thread-side-panel") || container.closest(".mg-lightbox") || container.closest(".mg-inline-gallery") || container.closest(".mg-thread-merged") || container.closest(".mg-thread-inline-reply")) continue;
 
       const message = findMessageContainer(container);
       if (!message) continue;
+
+      if (isMergedThreadSourceEvent(message)) continue;
+
+      const img = findMainImage(message);
+      if (!img) continue;
 
       if (result.some(item => item.element === message)) continue;
 
@@ -2004,34 +4545,68 @@
   }
 
   function findMainImage(element) {
-    const images = Array.from(element.querySelectorAll("img")).filter(img => {
-      const rect = img.getBoundingClientRect();
-      const src = img.currentSrc || img.src || "";
-      if (!src) return false;
-      if (rect.width < 35 || rect.height < 35) return false;
+    const contentSource = findThreadMessageContentSource(element);
+    const searchRoots = contentSource && contentSource !== element
+      ? [contentSource, element]
+      : [element];
+    let images = [];
 
-      const lowerSrc = src.toLowerCase();
-      const alt = (img.getAttribute("alt") || "").toLowerCase();
-      const title = (img.getAttribute("title") || "").toLowerCase();
-
-      // Exclude Element's generic attachment/file icons. These icons caused rows of
-      // downloadable files to be treated as image galleries when image rendering failed.
-      if (lowerSrc.includes("attachment") || lowerSrc.includes("paperclip") || lowerSrc.includes("file")) return false;
-      if (alt.includes("attachment") || alt.includes("file")) return false;
-      if (title.includes("attachment") || title.includes("file")) return false;
-
-      return true;
-    });
+    for (const root of searchRoots) {
+      images = Array.from(root.querySelectorAll("img")).filter(img => isMessageImageCandidate(img, element));
+      if (images.length > 0) break;
+    }
 
     if (images.length === 0) return null;
 
     images.sort((a, b) => {
-      const ar = a.getBoundingClientRect();
-      const br = b.getBoundingClientRect();
-      return (br.width * br.height) - (ar.width * ar.height);
+      return imageCandidateArea(b) - imageCandidateArea(a);
     });
 
     return images[0];
+  }
+
+  function isMergedThreadSourceEvent(element) {
+    if (!mergedThreadViewEnabled) return false;
+
+    const eventId = eventIdForElement(element);
+    return Boolean(eventId && getThreadRootIdForEventId(eventId));
+  }
+
+  function isMessageImageCandidate(img, messageElement) {
+    if (!(img instanceof HTMLImageElement)) return false;
+
+    const src = img.currentSrc || img.src || img.getAttribute("src") || "";
+    if (!src) return false;
+    if (img.closest(NON_CHAT_IMAGE_SELECTOR)) return false;
+
+    const isHiddenGallerySource = Boolean(
+      img.closest(".mg-gallery-placeholder") ||
+      messageElement?.classList?.contains("mg-gallery-placeholder")
+    );
+    const rect = img.getBoundingClientRect();
+    if (!isHiddenGallerySource && (rect.width < 35 || rect.height < 35)) return false;
+
+    const lowerSrc = src.toLowerCase();
+    const alt = (img.getAttribute("alt") || "").toLowerCase();
+    const title = (img.getAttribute("title") || "").toLowerCase();
+
+    // Exclude Element's generic attachment/file icons. These icons caused rows of
+    // downloadable files to be treated as image galleries when image rendering failed.
+    if (lowerSrc.includes("attachment") || lowerSrc.includes("paperclip") || lowerSrc.includes("file")) return false;
+    if (alt.includes("attachment") || alt.includes("file")) return false;
+    if (title.includes("attachment") || title.includes("file")) return false;
+
+    return true;
+  }
+
+  function imageCandidateArea(img) {
+    const rect = img.getBoundingClientRect();
+    const rectArea = rect.width * rect.height;
+    const width = Number(img.getAttribute("width") || img.naturalWidth || 0);
+    const height = Number(img.getAttribute("height") || img.naturalHeight || 0);
+    const intrinsicArea = Number.isFinite(width) && Number.isFinite(height) ? width * height : 0;
+
+    return Math.max(rectArea, intrinsicArea);
   }
 
   function findMessageContainer(element) {
@@ -2040,6 +4615,14 @@
            element.closest("li") ||
            element.closest('[role="listitem"]') ||
            element;
+  }
+
+  function eventIdForElement(element) {
+    if (!(element instanceof Element)) return "";
+
+    return element.getAttribute("data-event-id") ||
+      element.closest("[data-event-id]")?.getAttribute("data-event-id") ||
+      "";
   }
 
   function extractGalleryIdFromElement(element) {
@@ -2058,9 +4641,7 @@
   }
 
   function extractGalleryMetadataFromElement(element) {
-    const eventId =
-      element.getAttribute("data-event-id") ||
-      element.closest("[data-event-id]")?.getAttribute("data-event-id");
+    const eventId = eventIdForElement(element);
 
     if (eventId && galleryEventMetadataByEventId.has(eventId)) {
       return galleryEventMetadataByEventId.get(eventId);
@@ -2148,23 +4729,47 @@
 
     if (items.length < 1) return;
 
-    const anchor = items.reduce((first, item) => (
-      comesBefore(item.element, first.element) ? item : first
-    ), items[0]).element;
+    const scopedItems = new Map();
+    for (const item of items) {
+      const scopeId = galleryScopeKey(galleryScopeElement(item.element));
+      if (!scopedItems.has(scopeId)) scopedItems.set(scopeId, []);
+      scopedItems.get(scopeId).push(item);
+    }
 
-    buildInlineGallery(anchor, items, galleryData.id);
+    for (const scoped of scopedItems.values()) {
+      const anchor = scoped.reduce((first, item) => (
+        comesBefore(item.element, first.element) ? item : first
+      ), scoped[0]).element;
+
+      buildInlineGallery(anchor, scoped, galleryData.id);
+    }
   }
 
   function buildInlineGallery(anchor, imageItems, galleryId) {
     const parent = findBestGalleryParent(anchor);
     if (!parent) return;
 
-    const existing = document.querySelector(`.mg-inline-gallery[data-mg-gallery-id="${cssEscape(galleryId)}"]`);
-    if (existing) existing.remove();
+    const scope = galleryScopeElement(anchor);
+    const scopeId = galleryScopeKey(scope);
+    const renderKey = makeGalleryRenderKey(galleryId, imageItems);
+    const existing = findExistingInlineGalleryForScope(parent, galleryId, scopeId);
+
+    markGallerySourcePlaceholders(imageItems);
+
+    if (existing && existing.dataset.mgGalleryRenderKey === renderKey) {
+      existing.dataset.mgGalleryBuildPass = String(currentGalleryBuildPass);
+      applyInlineGalleryIndent(existing, anchor, parent);
+      return;
+    }
+
+    removeExistingInlineGalleryForScope(parent, galleryId, scopeId);
 
     const gallery = document.createElement("div");
     gallery.className = "mg-inline-gallery";
     gallery.dataset.mgGalleryId = galleryId;
+    gallery.dataset.mgGalleryScopeId = scopeId;
+    gallery.dataset.mgGalleryRenderKey = renderKey;
+    gallery.dataset.mgGalleryBuildPass = String(currentGalleryBuildPass);
 
     for (const item of imageItems) {
       const img = item.img;
@@ -2174,22 +4779,181 @@
       wrapper.className = "mg-gallery-item";
 
       const clone = img.cloneNode(true);
+      const cloneSrc = img.currentSrc || img.src || img.getAttribute("src") || "";
+      if (cloneSrc) {
+        clone.src = cloneSrc;
+        clone.removeAttribute("srcset");
+      }
       clone.dataset.mgGalleryImage = "1";
-      clone.dataset.fullSrc = img.dataset.fullSrc || img.dataset.mxcUrl || img.getAttribute("data-full-src") || img.getAttribute("data-mxc-url") || img.currentSrc || img.src;
+      clone.dataset.fullSrc = img.dataset.fullSrc || img.dataset.mxcUrl || img.getAttribute("data-full-src") || img.getAttribute("data-mxc-url") || cloneSrc;
 
-      const sourceEventId = item.element.getAttribute("data-event-id") || item.element.closest("[data-event-id]")?.getAttribute("data-event-id") || "";
+      const sourceEventId = eventIdForElement(item.element);
       const sourceMeta = sourceEventId ? galleryEventMetadataByEventId.get(sourceEventId) : null;
       if (sourceEventId) clone.dataset.eventId = sourceEventId;
       if (sourceMeta?.url) clone.dataset.mxcUrl = sourceMeta.url;
       if (sourceMeta?.caption) clone.dataset.caption = sourceMeta.caption;
 
       wrapper.appendChild(clone);
+      appendPostedImageDeleteButton(wrapper, sourceEventId);
       gallery.appendChild(wrapper);
-
-      item.element.classList.add("mg-gallery-placeholder");
     }
 
-    parent.insertBefore(gallery, anchor);
+    applyInlineGalleryIndent(gallery, anchor, parent);
+
+    const reference = findDirectChildForParent(anchor, parent);
+    parent.insertBefore(gallery, reference);
+  }
+
+
+  function appendPostedImageDeleteButton(wrapper, eventId) {
+    if (!eventId || !(wrapper instanceof Element)) return;
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "mg-posted-image-delete";
+    button.textContent = "×";
+    button.title = t("deletePostedImageTitle");
+    button.setAttribute("aria-label", t("deletePostedImageTitle"));
+    button.dataset.eventId = eventId;
+    button.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      deletePostedGalleryImage(eventId, wrapper);
+    });
+
+    wrapper.appendChild(button);
+  }
+
+  async function deletePostedGalleryImage(eventId, wrapper = null) {
+    if (!eventId) return;
+    if (!confirm(t("deletePostedImageConfirm"))) return;
+
+    try {
+      await performThreadMessageAction("delete", eventId);
+      if (wrapper instanceof Element) {
+        wrapper.classList.add("mg-gallery-item-deleted");
+      }
+      setTimeout(rebuildInlineGalleries, 500);
+      setTimeout(scheduleThreadViewRebuild, 900);
+      setTimeout(rebuildInlineGalleries, 1600);
+      setTimeout(scheduleThreadViewRebuild, 2200);
+    } catch (error) {
+      console.error(error);
+      alert(t("actionFailed", { message: error.message || String(error) }));
+    }
+  }
+
+  function applyInlineGalleryIndent(gallery, anchor, parent) {
+    if (!(gallery instanceof HTMLElement) || !(anchor instanceof Element) || !(parent instanceof Element)) return;
+
+    const indentSource = findGalleryIndentSource(anchor);
+    if (!indentSource) return;
+
+    const parentRect = parent.getBoundingClientRect();
+    const sourceRect = indentSource.getBoundingClientRect();
+    const indent = Math.max(0, Math.round(sourceRect.left - parentRect.left));
+
+    if (indent > 0) {
+      gallery.style.marginLeft = `${indent}px`;
+      gallery.style.maxWidth = `calc(100% - ${indent}px)`;
+    }
+  }
+
+  function findGalleryIndentSource(anchor) {
+    const selectors = [
+      ".mx_EventTile_body",
+      ".mx_MTextBody",
+      ".mx_MImageBody",
+      "[data-testid='message_content']",
+      "[class*='EventTile_body']",
+      "[class*='MTextBody']",
+      "[class*='MImageBody']",
+      "[class*='MessageBody']"
+    ];
+
+    for (const selector of selectors) {
+      const element = anchor.querySelector?.(selector);
+      if (element instanceof Element && isVisibleElement(element)) {
+        return element;
+      }
+    }
+
+    return anchor;
+  }
+
+  function markGallerySourcePlaceholders(imageItems) {
+    for (const item of imageItems) {
+      if (!(item?.element instanceof Element)) continue;
+      item.element.classList.add("mg-gallery-placeholder");
+      item.element.dataset.mgGalleryPlaceholderPass = String(currentGalleryBuildPass);
+    }
+  }
+
+  function cleanupStaleInlineGalleryRenderPass(pass) {
+    const passText = String(pass);
+
+    for (const gallery of document.querySelectorAll(".mg-inline-gallery[data-mg-gallery-scope-id]")) {
+      if (gallery.dataset.mgGalleryBuildPass !== passText) {
+        gallery.remove();
+      }
+    }
+
+    for (const element of document.querySelectorAll(".mg-gallery-placeholder")) {
+      if (element.dataset.mgGalleryPlaceholderPass !== passText) {
+        element.classList.remove("mg-gallery-placeholder");
+        delete element.dataset.mgGalleryPlaceholderPass;
+      }
+    }
+  }
+
+  function findExistingInlineGalleryForScope(parent, galleryId, scopeId) {
+    for (const gallery of Array.from(parent.children)) {
+      if (!(gallery instanceof Element)) continue;
+      if (!gallery.matches(".mg-inline-gallery")) continue;
+      if (gallery.dataset.mgGalleryId !== galleryId) continue;
+      if ((gallery.dataset.mgGalleryScopeId || "") !== scopeId) continue;
+      return gallery;
+    }
+
+    return null;
+  }
+
+  function removeExistingInlineGalleryForScope(parent, galleryId, scopeId) {
+    for (const gallery of Array.from(parent.children)) {
+      if (!(gallery instanceof Element)) continue;
+      if (!gallery.matches(".mg-inline-gallery")) continue;
+      if (gallery.dataset.mgGalleryId !== galleryId) continue;
+      if ((gallery.dataset.mgGalleryScopeId || "") !== scopeId) continue;
+      gallery.remove();
+    }
+  }
+
+  function makeGalleryRenderKey(galleryId, imageItems) {
+    const parts = imageItems.map(item => {
+      const eventId = eventIdForElement(item.element);
+      const src = item.img?.currentSrc || item.img?.src || item.img?.getAttribute("src") || "";
+      const index = extractGalleryIndex(item.element);
+      return `${eventId}|${index ?? ""}|${src}`;
+    });
+
+    return `${galleryId}::${parts.join("::")}`;
+  }
+
+  function galleryScopeElement(anchor) {
+    return findBestGalleryParent(anchor) ||
+      anchor.closest(NATIVE_THREAD_PANEL_SELECTOR) ||
+      anchor.parentElement ||
+      document.body;
+  }
+
+  function galleryScopeKey(scope) {
+    if (!scope || !(scope instanceof Element)) return "document";
+
+    if (!galleryScopeIds.has(scope)) {
+      galleryScopeIds.set(scope, `scope-${nextGalleryScopeId++}`);
+    }
+
+    return galleryScopeIds.get(scope);
   }
 
   function findBestGalleryParent(anchor) {
