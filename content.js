@@ -87,6 +87,7 @@
       threadMessage: "Thread-Nachricht",
       threadHeader: "Thread:",
       by: "von",
+      nativeReplyActionLabel: "Antworten",
       editMessagePrompt: "Nachricht bearbeiten:",
       deleteMessageConfirm: "Diese Nachricht löschen?",
       actionNoFallback: "Aktion fehlgeschlagen: kein Token/API-Fallback verfügbar.",
@@ -154,6 +155,7 @@
       threadMessage: "Thread message",
       threadHeader: "Thread:",
       by: "by",
+      nativeReplyActionLabel: "Reply",
       editMessagePrompt: "Edit message:",
       deleteMessageConfirm: "Delete this message?",
       actionNoFallback: "Action failed: no token/API fallback available.",
@@ -237,6 +239,15 @@
     "[class*='MImageBody']",
     "[class*='MessageBody']"
   ].join(", ");
+  const NATIVE_MESSAGE_ACTION_BAR_SELECTOR = [
+    ".mx_MessageActionBar",
+    "[class*='MessageActionBar']",
+    "[class*='EventTile_contextual']",
+    "[class*='ActionBar']",
+    "[data-testid*='message-action']",
+    "[role='toolbar']"
+  ].join(", ");
+  const NATIVE_ACTION_CONTROL_SELECTOR = "button, [role='button'], a";
 
   let selectedFiles = [];
   let previewUrls = [];
@@ -296,6 +307,7 @@
     installLightboxHandler();
     installThreadPanelHandler();
     installThreadFocusTracking();
+    installNativeThreadReplyActionTweaks();
     installHardPasteDropInterceptors();
     installGlobalPasteAndDropHandlers();
     loadGalleryHistory();
@@ -465,6 +477,7 @@
     if (preview) preview.dataset.emptyText = t("emptyPreview");
 
     renderPreviewButtonLabels();
+    updateNativeThreadReplyActions();
   }
 
   function setUiLanguage(language, persist = false) {
@@ -3769,6 +3782,250 @@
       event.stopPropagation();
       openNativeThreadView(rootEventId, rootEventId);
     }, false);
+  }
+
+  function installNativeThreadReplyActionTweaks() {
+    let timer = null;
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        updateNativeThreadReplyActions();
+      }, 60);
+    };
+
+    const observer = new MutationObserver(mutations => {
+      if (mutations.some(mutationTouchesNativeMessageActions)) {
+        schedule();
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["aria-label", "title", "class"]
+    });
+
+    updateNativeThreadReplyActions();
+  }
+
+  function mutationTouchesNativeMessageActions(mutation) {
+    const target = mutation.target instanceof Element ? mutation.target : mutation.target?.parentElement;
+    if (target && isElementInNativeMessageActions(target)) return true;
+
+    const changedNodes = [
+      ...Array.from(mutation.addedNodes || []),
+      ...Array.from(mutation.removedNodes || [])
+    ];
+
+    return changedNodes.some(node => {
+      if (node.nodeType !== Node.ELEMENT_NODE) return false;
+      return isElementInNativeMessageActions(node) ||
+        node.matches?.(NATIVE_ACTION_CONTROL_SELECTOR) ||
+        node.querySelector?.(NATIVE_ACTION_CONTROL_SELECTOR);
+    });
+  }
+
+  function isElementInNativeMessageActions(element) {
+    if (!(element instanceof Element)) return false;
+    if (isExtensionOwnedElement(element)) return false;
+    return element.matches(NATIVE_MESSAGE_ACTION_BAR_SELECTOR) ||
+      Boolean(element.closest(NATIVE_MESSAGE_ACTION_BAR_SELECTOR)) ||
+      Boolean(element.querySelector(NATIVE_MESSAGE_ACTION_BAR_SELECTOR));
+  }
+
+  function updateNativeThreadReplyActions() {
+    const actionBars = new Set(document.querySelectorAll(NATIVE_MESSAGE_ACTION_BAR_SELECTOR));
+
+    for (const control of document.querySelectorAll(NATIVE_ACTION_CONTROL_SELECTOR)) {
+      if (!(control instanceof HTMLElement) || isExtensionOwnedElement(control)) continue;
+      if (!isNativePlainReplyAction(control) && !isNativeThreadReplyAction(control)) continue;
+
+      const actionBar = findNativeActionContainer(control);
+      if (actionBar) actionBars.add(actionBar);
+    }
+
+    for (const actionBar of actionBars) {
+      if (!(actionBar instanceof Element) || isExtensionOwnedElement(actionBar)) continue;
+      tweakNativeThreadReplyActionBar(actionBar);
+    }
+  }
+
+  function tweakNativeThreadReplyActionBar(actionBar) {
+    const controls = collectNativeActionControls(actionBar);
+    const explicitThreadReply = controls.find(isNativeThreadReplyAction);
+    const plainReply = controls.find(control => control !== explicitThreadReply && isNativePlainReplyAction(control));
+
+    if (!plainReply) return;
+
+    const threadReply = explicitThreadReply || inferNativeThreadReplyAction(controls, plainReply);
+    if (!threadReply || threadReply === plainReply) return;
+
+    copyNativeReplyActionIcon(plainReply, threadReply);
+    labelNativeThreadReplyAction(threadReply);
+    hideNativePlainReplyAction(plainReply);
+  }
+
+  function collectNativeActionControls(actionBar) {
+    return Array.from(actionBar.querySelectorAll(NATIVE_ACTION_CONTROL_SELECTOR))
+      .filter(control => control instanceof HTMLElement)
+      .filter(control => !isExtensionOwnedElement(control));
+  }
+
+  function findNativeActionContainer(control) {
+    if (!(control instanceof Element)) return null;
+
+    const explicit = control.closest(NATIVE_MESSAGE_ACTION_BAR_SELECTOR);
+    if (explicit instanceof Element && explicit !== control && !isExtensionOwnedElement(explicit)) {
+      const controls = collectNativeActionControls(explicit);
+      if (controls.length >= 2) return explicit;
+    }
+
+    let current = control.parentElement;
+    for (let depth = 0; current && current !== document.body && depth < 5; depth += 1) {
+      if (isExtensionOwnedElement(current)) return null;
+      const controls = collectNativeActionControls(current);
+      if (controls.length >= 3 && controls.length <= 12) return current;
+      current = current.parentElement;
+    }
+
+    return null;
+  }
+
+  function labelNativeThreadReplyAction(control) {
+    const label = t("nativeReplyActionLabel");
+    control.dataset.mgNativeThreadReplyAction = "1";
+    control.setAttribute("aria-label", label);
+    control.setAttribute("title", label);
+  }
+
+  function hideNativePlainReplyAction(control) {
+    control.classList.add("mg-native-reply-action-hidden");
+    control.setAttribute("aria-hidden", "true");
+    control.tabIndex = -1;
+    control.style.setProperty("display", "none", "important");
+  }
+
+  function isNativeThreadReplyAction(control) {
+    if (!(control instanceof Element)) return false;
+    if (control.dataset.mgNativeThreadReplyAction === "1") return true;
+
+    return nativeActionLabels(control).some(label => {
+      const lower = label.toLowerCase();
+      return lower.includes("reply in thread") ||
+        lower.includes("thread reply") ||
+        lower.includes("antwort im thread") ||
+        lower.includes("antworten im thread") ||
+        lower.includes("im thread antworten") ||
+        lower.includes("in thread antworten") ||
+        lower === "thread" ||
+        lower === "thema";
+    });
+  }
+
+  function isNativePlainReplyAction(control) {
+    if (!(control instanceof Element)) return false;
+    if (control.dataset.mgNativeThreadReplyAction === "1") return false;
+
+    return nativeActionLabels(control).some(label => {
+      const lower = label.toLowerCase();
+      if (lower.includes("thread")) return false;
+      return lower === "reply" ||
+        lower === "reply reply" ||
+        lower === "antwort" ||
+        lower === "antworten" ||
+        lower === "antworten antworten";
+    });
+  }
+
+  function inferNativeThreadReplyAction(controls, plainReply) {
+    const index = controls.indexOf(plainReply);
+    if (index < 0) return null;
+
+    for (const candidate of controls.slice(index + 1, index + 3)) {
+      if (!(candidate instanceof HTMLElement)) continue;
+      if (isNativePlainReplyAction(candidate)) continue;
+      if (isNativeNonThreadHoverAction(candidate)) continue;
+      return candidate;
+    }
+
+    return null;
+  }
+
+  function isNativeNonThreadHoverAction(control) {
+    return nativeActionLabels(control).some(label => {
+      const lower = label.toLowerCase();
+      return lower.includes("react") ||
+        lower.includes("reagier") ||
+        lower.includes("emoji") ||
+        lower.includes("edit") ||
+        lower.includes("bearbeit") ||
+        lower.includes("pin") ||
+        lower.includes("anheft") ||
+        lower.includes("more") ||
+        lower.includes("weitere") ||
+        lower.includes("option");
+    });
+  }
+
+  function nativeActionLabels(control) {
+    return [
+      control.getAttribute("aria-label") || "",
+      control.getAttribute("title") || "",
+      control.textContent || ""
+    ]
+      .map(normalizeSpaces)
+      .filter(Boolean);
+  }
+
+  function copyNativeReplyActionIcon(replyAction, threadAction) {
+    if (!(replyAction instanceof Element) || !(threadAction instanceof Element)) return;
+    if (threadAction.dataset.mgNativeReplyIconCopied === "1") return;
+
+    const replyIcon = findNativeActionIcon(replyAction);
+    const threadIcon = findNativeActionIcon(threadAction);
+    if (!replyIcon) return;
+
+    const clone = replyIcon.cloneNode(true);
+    stripElementIds(clone);
+    clone.dataset.mgNativeReplyIcon = "1";
+
+    if (threadIcon?.parentElement) {
+      threadIcon.replaceWith(clone);
+    } else {
+      threadAction.prepend(clone);
+    }
+
+    threadAction.dataset.mgNativeReplyIconCopied = "1";
+  }
+
+  function findNativeActionIcon(control) {
+    if (!(control instanceof Element)) return null;
+
+    const selectors = [
+      "svg",
+      "[class*='Icon']",
+      "[class*='icon']",
+      "[data-testid*='icon']",
+      "img"
+    ];
+
+    for (const selector of selectors) {
+      const icon = control.querySelector(selector);
+      if (icon instanceof Element) return icon;
+    }
+
+    return null;
+  }
+
+  function stripElementIds(element) {
+    if (!(element instanceof Element)) return;
+    element.removeAttribute("id");
+
+    for (const child of element.querySelectorAll("[id]")) {
+      child.removeAttribute("id");
+    }
   }
 
   async function openNativeThreadView(rootEventId, preferredEventId = "") {

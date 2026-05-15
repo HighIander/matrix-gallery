@@ -652,6 +652,10 @@ html[data-mg-language="en"] .mg-thread-inline-reply::after {
   text-decoration: underline !important;
 }
 
+.mg-native-reply-action-hidden {
+  display: none !important;
+}
+
 .mg-thread-merged-messages {
   display: flex !important;
   flex-direction: column !important;
