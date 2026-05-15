@@ -1210,13 +1210,20 @@
       const thread = event.getThread?.() || event.thread || null;
       const threadRootEvent = thread?.rootEvent || thread?.getRootEvent?.();
 
-      const threadRootId =
+      const relationThreadRootId =
         (relatesTo.rel_type === "m.thread" && relatesTo.event_id) ||
         (relation.rel_type === "m.thread" && relation.event_id) ||
-        event.threadRootId ||
-        thread?.id ||
-        threadRootEvent?.getId?.() ||
-        threadRootEvent?.event?.event_id ||
+        "";
+      const sdkThreadRootId =
+        thread && (
+          thread?.id ||
+          threadRootEvent?.getId?.() ||
+          threadRootEvent?.event?.event_id ||
+          ""
+        );
+      const threadRootId =
+        (relationThreadRootId && relationThreadRootId !== eventId ? relationThreadRootId : "") ||
+        (sdkThreadRootId && sdkThreadRootId !== eventId ? sdkThreadRootId : "") ||
         "";
 
       const replyToEventId =

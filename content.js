@@ -200,6 +200,22 @@
     "[class*='Avatar']",
     "[class*='avatar']"
   ].join(", ");
+  const NON_MESSAGE_IMAGE_SELECTOR = [
+    "#mg-panel",
+    "#mg-toggle",
+    ".mg-lightbox",
+    ".mx_BaseAvatar",
+    ".mx_DecoratedRoomAvatar",
+    ".mx_EventTile_avatar",
+    ".mx_RoomAvatar",
+    ".mx_RoomTile_avatar",
+    ".mx_SpacePanel",
+    ".mx_SpaceButton",
+    ".mx_LeftPanel",
+    ".mx_RoomList",
+    ".mx_ContextualMenu",
+    ".mx_UserMenu"
+  ].join(", ");
   const EXTENSION_OWNED_SELECTOR = [
     "#mg-panel",
     "#mg-toggle",
@@ -3268,7 +3284,7 @@
     link.className = "mg-thread-inline-link";
     link.href = "#";
     link.dataset.threadRootId = rootEventId;
-    link.innerHTML = `<strong>${escapeHtml(t("threadHeader"))}</strong> ${escapeHtml(threadTitle)} ${escapeHtml(t("by"))} ${escapeHtml(threadAuthor)}`;
+    link.innerHTML = `<strong>${escapeHtml(t("threadHeader"))}</strong> ${escapeHtml(threadTitle)} | ${escapeHtml(threadAuthor)}`;
     link.addEventListener("click", event => {
       event.preventDefault();
       event.stopPropagation();
@@ -3351,7 +3367,7 @@
 
         rows.push(createThreadMessageRow(
           item,
-          createThreadGalleryMessage(grouped, galleryId, source),
+          createThreadGalleryMessage(grouped, galleryId, eventElements),
           source,
           showSender,
           itemRootEventId
@@ -3405,13 +3421,17 @@
     return Boolean(item?.media?.downloadUrl && item?.media?.mxcUrl && String(item?.body || "").match(/\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i));
   }
 
-  function createThreadGalleryMessage(items, galleryId, source = null) {
+  function createThreadGalleryMessage(items, galleryId, eventElements = null) {
     const images = items
-      .map(item => makeThreadGalleryImage(item))
+      .map(item => makeThreadGalleryImage(item, eventElements?.get?.(item.eventId) || null))
       .filter(Boolean);
 
-    if (images.length === 0 && source) {
-      const clone = cloneThreadMessage(source);
+    const fallbackSource = items
+      .map(item => eventElements?.get?.(item.eventId) || null)
+      .find(Boolean);
+
+    if (images.length === 0 && fallbackSource) {
+      const clone = cloneThreadMessage(fallbackSource);
       const image = clone.querySelector("img");
       if (image) return clone;
     }
@@ -3436,16 +3456,29 @@
     return gallery;
   }
 
-  function makeThreadGalleryImage(item) {
+  function makeThreadGalleryImage(item, source = null) {
     const media = item?.media || {};
     const gallery = item?.gallery || {};
-    const src = media.thumbnailUrl || media.downloadUrl || gallery.downloadUrl || gallery.url || "";
-    const fullSrc = media.downloadUrl || media.thumbnailUrl || gallery.downloadUrl || gallery.url || src;
+    let src = media.thumbnailUrl || media.downloadUrl || gallery.downloadUrl || gallery.url || "";
+    let fullSrc = media.downloadUrl || media.thumbnailUrl || gallery.downloadUrl || gallery.url || src;
+    let sourceImage = null;
+
+    if (!src || String(src).startsWith("mxc://")) {
+      sourceImage = source ? findMainImage(source) : null;
+      src = sourceImage?.currentSrc || sourceImage?.src || sourceImage?.getAttribute("src") || "";
+      fullSrc = sourceImage?.dataset.fullSrc ||
+        sourceImage?.dataset.mxcUrl ||
+        sourceImage?.getAttribute("data-full-src") ||
+        sourceImage?.getAttribute("data-mxc-url") ||
+        src;
+    }
 
     if (!src || String(src).startsWith("mxc://")) return null;
 
-    const img = document.createElement("img");
+    const img = sourceImage ? sourceImage.cloneNode(true) : document.createElement("img");
+    img.removeAttribute("id");
     img.src = src;
+    img.removeAttribute("srcset");
     img.loading = "lazy";
     img.decoding = "async";
     img.dataset.mgGalleryImage = "1";
@@ -4528,7 +4561,7 @@
       const message = findMessageContainer(container);
       if (!message) continue;
 
-      if (isMergedThreadSourceEvent(message)) continue;
+      if (!message.closest(NATIVE_THREAD_PANEL_SELECTOR) && isHiddenMergedThreadSourceMessage(message)) continue;
 
       const img = findMainImage(message);
       if (!img) continue;
@@ -4569,7 +4602,25 @@
     if (!mergedThreadViewEnabled) return false;
 
     const eventId = eventIdForElement(element);
-    return Boolean(eventId && getThreadRootIdForEventId(eventId));
+    return isEventInMergedThreadGroup(eventId);
+  }
+
+  function isHiddenMergedThreadSourceMessage(element) {
+    if (!(element instanceof Element)) return false;
+    return Boolean(element.closest(".mg-thread-hidden-message"));
+  }
+
+  function isEventInMergedThreadGroup(eventId) {
+    if (!eventId) return false;
+    if (threadGroupsByRootEventId.has(eventId)) return true;
+
+    for (const group of threadGroupsByRootEventId.values()) {
+      if ((group.events || []).some(item => item?.eventId === eventId)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   function isMessageImageCandidate(img, messageElement) {
@@ -4577,11 +4628,17 @@
 
     const src = img.currentSrc || img.src || img.getAttribute("src") || "";
     if (!src) return false;
-    if (img.closest(NON_CHAT_IMAGE_SELECTOR)) return false;
+    if (isNonMessageImage(img)) return false;
+
+    const messageContent = img.closest(MESSAGE_CONTENT_SELECTOR);
+    if (img.closest(NATIVE_THREAD_PANEL_SELECTOR) && !messageContent) return false;
+    if (!messageContent && img.closest(NON_CHAT_IMAGE_SELECTOR)) return false;
 
     const isHiddenGallerySource = Boolean(
       img.closest(".mg-gallery-placeholder") ||
-      messageElement?.classList?.contains("mg-gallery-placeholder")
+      img.closest(".mg-thread-hidden-message") ||
+      messageElement?.classList?.contains("mg-gallery-placeholder") ||
+      messageElement?.classList?.contains("mg-thread-hidden-message")
     );
     const rect = img.getBoundingClientRect();
     if (!isHiddenGallerySource && (rect.width < 35 || rect.height < 35)) return false;
@@ -4597,6 +4654,21 @@
     if (title.includes("attachment") || title.includes("file")) return false;
 
     return true;
+  }
+
+  function isNonMessageImage(img) {
+    if (!(img instanceof HTMLImageElement)) return true;
+    if (img.closest(NON_MESSAGE_IMAGE_SELECTOR)) return true;
+
+    const messageContent = img.closest(MESSAGE_CONTENT_SELECTOR);
+    const avatarMarker = img.closest([
+      "[data-testid='avatar-img']",
+      "[data-testid*='avatar']",
+      "[class*='Avatar']",
+      "[class*='avatar']"
+    ].join(", "));
+
+    return Boolean(avatarMarker && (!messageContent || messageContent.contains(avatarMarker)));
   }
 
   function imageCandidateArea(img) {
@@ -4754,11 +4826,12 @@
     const renderKey = makeGalleryRenderKey(galleryId, imageItems);
     const existing = findExistingInlineGalleryForScope(parent, galleryId, scopeId);
 
-    markGallerySourcePlaceholders(imageItems);
-
     if (existing && existing.dataset.mgGalleryRenderKey === renderKey) {
       existing.dataset.mgGalleryBuildPass = String(currentGalleryBuildPass);
-      applyInlineGalleryIndent(existing, anchor, parent);
+      withVisibleGallerySources(imageItems, () => {
+        applyInlineGalleryIndent(existing, anchor, parent);
+      });
+      markGallerySourcePlaceholders(imageItems);
       return;
     }
 
@@ -4766,6 +4839,9 @@
 
     const gallery = document.createElement("div");
     gallery.className = "mg-inline-gallery";
+    if (anchor.closest(NATIVE_THREAD_PANEL_SELECTOR)) {
+      gallery.classList.add("mg-native-thread-gallery");
+    }
     gallery.dataset.mgGalleryId = galleryId;
     gallery.dataset.mgGalleryScopeId = scopeId;
     gallery.dataset.mgGalleryRenderKey = renderKey;
@@ -4798,10 +4874,13 @@
       gallery.appendChild(wrapper);
     }
 
-    applyInlineGalleryIndent(gallery, anchor, parent);
+    withVisibleGallerySources(imageItems, () => {
+      applyInlineGalleryIndent(gallery, anchor, parent);
+    });
 
     const reference = findDirectChildForParent(anchor, parent);
     parent.insertBefore(gallery, reference);
+    markGallerySourcePlaceholders(imageItems);
   }
 
 
@@ -4856,6 +4935,9 @@
     if (indent > 0) {
       gallery.style.marginLeft = `${indent}px`;
       gallery.style.maxWidth = `calc(100% - ${indent}px)`;
+    } else {
+      gallery.style.marginLeft = "";
+      gallery.style.maxWidth = "";
     }
   }
 
@@ -4886,6 +4968,27 @@
       if (!(item?.element instanceof Element)) continue;
       item.element.classList.add("mg-gallery-placeholder");
       item.element.dataset.mgGalleryPlaceholderPass = String(currentGalleryBuildPass);
+    }
+  }
+
+  function withVisibleGallerySources(imageItems, callback) {
+    const restored = [];
+
+    for (const item of imageItems) {
+      const element = item?.element;
+      if (!(element instanceof Element)) continue;
+      if (!element.classList.contains("mg-gallery-placeholder")) continue;
+
+      element.classList.remove("mg-gallery-placeholder");
+      restored.push(element);
+    }
+
+    try {
+      return callback();
+    } finally {
+      for (const element of restored) {
+        element.classList.add("mg-gallery-placeholder");
+      }
     }
   }
 

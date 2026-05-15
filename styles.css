@@ -384,6 +384,29 @@ html:not(.mg-global-dragover) #mg-global-drop-hint {
   display: block !important;
 }
 
+.mg-native-thread-gallery,
+#mg-thread-side-panel .mg-thread-media-gallery {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 176px !important;
+}
+
+.mg-native-thread-gallery .mg-gallery-item,
+#mg-thread-side-panel .mg-thread-media-gallery .mg-gallery-item {
+  height: 160px !important;
+  min-height: 160px !important;
+  max-height: 160px !important;
+}
+
+.mg-native-thread-gallery img,
+.mg-native-thread-gallery img[data-mg-gallery-image="1"],
+#mg-thread-side-panel .mg-thread-media-gallery img,
+#mg-thread-side-panel .mg-thread-media-gallery img[data-mg-gallery-image="1"] {
+  height: 160px !important;
+  max-height: 160px !important;
+  max-width: min(300px, 72vw) !important;
+}
+
 
 .mg-posted-image-delete {
   position: absolute !important;
@@ -575,8 +598,9 @@ body:has(#mg-panel:not(.mg-hidden)) #mg-global-drop-hint {
   cursor: pointer !important;
 }
 
-.mg-thread-merged::after {
-  content: "Open thread";
+.mg-thread-merged::after,
+.mg-thread-inline-reply::after {
+  content: "Antworten";
   position: absolute !important;
   top: 8px !important;
   right: 10px !important;
@@ -592,11 +616,20 @@ body:has(#mg-panel:not(.mg-hidden)) #mg-global-drop-hint {
   transition: opacity 120ms ease !important;
 }
 
-.mg-thread-merged:hover::after {
+html[data-mg-language="en"] .mg-thread-merged::after,
+html[data-mg-language="en"] .mg-thread-inline-reply::after {
+  content: "Reply";
+}
+
+.mg-thread-merged:hover::after,
+.mg-thread-merged:focus-within::after,
+.mg-thread-inline-reply:hover::after,
+.mg-thread-inline-reply:focus-within::after {
   opacity: 1 !important;
 }
 
 .mg-thread-inline-reply {
+  position: relative !important;
   margin: 6px 0 10px 0 !important;
   padding: 8px 10px !important;
   border-left: 3px solid #d1d5db !important;
