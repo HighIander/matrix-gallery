@@ -1,4 +1,4 @@
-# Matrix Gallery 0.5.1
+# Matrix Gallery
 
 This extension changes the way images are uploaded and displayed by Matrix, in order to mimick the feeling of Mattermost and other chat tools that allow upload of multiple images at once. 
 
