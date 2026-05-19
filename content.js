@@ -269,6 +269,7 @@
   let currentLightboxPanning = false;
   const lightboxDownloadObjectUrls = new Set();
   const imageCaptions = new WeakMap();
+  const pendingComposerClearByElement = new WeakMap();
   let pageSession = null;
   let lastComposerElement = null;
   let lastKnownRoomKey = "";
@@ -1767,14 +1768,17 @@
     const threadRootId = element.id === "mg-thread-side-text"
       ? currentThreadPanelTarget?.rootEventId
       : "";
+    const clearedText = getEditableText(element);
 
     if ("value" in element) {
       clearValueComposerText(element);
+      rememberPendingComposerClear(element, clearedText);
       if (threadRootId) threadDraftsByRootEventId.delete(threadRootId);
       return;
     }
 
     clearContentEditableComposerText(element);
+    rememberPendingComposerClear(element, clearedText);
     if (threadRootId) threadDraftsByRootEventId.delete(threadRootId);
   }
 
@@ -1801,6 +1805,13 @@
     const deletedByEditor = getEditableText(element).trim()
       ? deleteEditableComposerContents(element)
       : false;
+
+    dispatchComposerInputEvents(element);
+
+    if (getEditableText(element).trim()) {
+      deleteEditableComposerCharacters(element, getEditableText(element).length + 5);
+      dispatchComposerInputEvents(element);
+    }
 
     if (getEditableText(element).trim()) {
       element.textContent = "";
@@ -1835,6 +1846,165 @@
         selection.removeAllRanges();
       } catch {}
     }
+  }
+
+  function deleteEditableComposerCharacters(element, limit = 120) {
+    if (!(element instanceof Element)) return;
+
+    for (let index = 0; index < limit; index += 1) {
+      const text = getEditableText(element);
+      if (!text) return;
+      if (!deleteLastEditableComposerCharacter(element)) return;
+    }
+  }
+
+  function deleteLastEditableComposerCharacter(element) {
+    const textNode = lastTextNode(element);
+    if (!textNode || !textNode.nodeValue) return false;
+
+    const selection = window.getSelection?.();
+    const range = document.createRange?.();
+    if (!selection || !range) return false;
+
+    try {
+      const end = textNode.nodeValue.length;
+      range.setStart(textNode, Math.max(0, end - 1));
+      range.setEnd(textNode, end);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return Boolean(document.execCommand?.("delete"));
+    } catch {
+      return false;
+    } finally {
+      try {
+        selection.removeAllRanges();
+      } catch {}
+    }
+  }
+
+  function lastTextNode(element) {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    let node = null;
+    let current = walker.nextNode();
+
+    while (current) {
+      if (current.nodeValue) node = current;
+      current = walker.nextNode();
+    }
+
+    return node;
+  }
+
+  function rememberPendingComposerClear(element, clearedText) {
+    const text = String(clearedText || "");
+    if (!(element instanceof Element) || !text.trim()) return;
+
+    forgetPendingComposerClear(element);
+
+    const pending = {
+      text,
+      active: true,
+      timer: null,
+      handler: null
+    };
+    pending.handler = event => {
+      const target = event.target instanceof Element ? event.target : null;
+      const editable = findEditableElementForTarget(target) || element;
+      setTimeout(() => stripPendingComposerClearText(editable, pending), 0);
+    };
+    pending.timer = setTimeout(() => {
+      forgetPendingComposerClear(element);
+    }, 10000);
+
+    pendingComposerClearByElement.set(element, pending);
+    document.addEventListener("input", pending.handler, true);
+    for (const delay of [30, 120, 300, 700, 1500]) {
+      setTimeout(() => stripPendingComposerClearText(element, pending), delay);
+    }
+  }
+
+  function forgetPendingComposerClear(element) {
+    const pending = pendingComposerClearByElement.get(element);
+    if (!pending) return;
+
+    if (pending.timer) clearTimeout(pending.timer);
+    pending.active = false;
+    if (pending.handler) {
+      document.removeEventListener("input", pending.handler, true);
+    }
+    pendingComposerClearByElement.delete(element);
+  }
+
+  function stripPendingComposerClearText(element, pending) {
+    if (!pending?.active || !(element instanceof Element)) return;
+
+    const current = getEditableText(element);
+    const stripped = stripClearedComposerPrefix(current, pending.text);
+    if (stripped === current) return;
+
+    setComposerElementText(element, stripped);
+    dispatchComposerInputEvents(element);
+  }
+
+  function findEditableElementForTarget(target) {
+    if (!(target instanceof Element)) return null;
+
+    const editable = target.matches?.(EDITABLE_COMPOSER_SELECTOR)
+      ? target
+      : target.closest?.(EDITABLE_COMPOSER_SELECTOR);
+
+    return editable instanceof Element ? editable : null;
+  }
+
+  function stripClearedComposerPrefix(current, clearedText) {
+    const value = String(current || "");
+    const variants = [
+      String(clearedText || ""),
+      String(clearedText || "").trim(),
+      normalizeSpaces(clearedText),
+      String(clearedText || "").slice(0, -1),
+      normalizeSpaces(clearedText).slice(0, -1)
+    ]
+      .filter(text => text.length > 0)
+      .filter((text, index, array) => array.indexOf(text) === index)
+      .sort((a, b) => b.length - a.length);
+
+    for (const stale of variants) {
+      if (value === stale) return "";
+      if (value.startsWith(stale)) return value.slice(stale.length);
+    }
+
+    return value;
+  }
+
+  function setComposerElementText(element, value) {
+    if (!element) return;
+
+    if ("value" in element) {
+      setNativeTextValue(element, value);
+      try {
+        element.setSelectionRange(String(value).length, String(value).length);
+      } catch {}
+      return;
+    }
+
+    element.textContent = value;
+    placeCaretAtEnd(element);
+  }
+
+  function placeCaretAtEnd(element) {
+    if (!(element instanceof Element)) return;
+
+    const selection = window.getSelection?.();
+    const range = document.createRange?.();
+    if (!selection || !range) return;
+
+    try {
+      range.selectNodeContents(element);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } catch {}
   }
 
   function clearValueComposerText(element) {
