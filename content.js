@@ -86,6 +86,7 @@
       threadStart: "Thread-Start",
       threadMessage: "Thread-Nachricht",
       threadHeader: "Thread:",
+      newThreadHeader: "New thread:",
       by: "von",
       nativeReplyActionLabel: "Antworten",
       editMessagePrompt: "Nachricht bearbeiten:",
@@ -155,6 +156,7 @@
       threadStart: "Thread start",
       threadMessage: "Thread message",
       threadHeader: "Thread:",
+      newThreadHeader: "New thread:",
       by: "by",
       nativeReplyActionLabel: "Reply",
       editMessagePrompt: "Edit message:",
@@ -2955,25 +2957,58 @@
         const replies = (group.events || [])
           .filter(item => item?.eventId && item.eventId !== group.rootEventId)
           .sort((a, b) => (a.ts || 0) - (b.ts || 0))
-          .map(item => [
-            item.eventId,
-            item.ts || 0,
-            item.body || "",
-            item.format || "",
-            item.formattedBody || "",
-            item.redacted ? "redacted" : "",
-            reactionSignatureForThreadItem(item),
-            item.gallery?.id || item.media?.galleryId || "",
-            item.media?.downloadUrl || ""
-          ].join(":"))
+          .map(item => threadItemRenderSignatureWithSource(item, eventElements))
           .join(",");
 
-        return `${group.rootEventId}:${root?.ts || group.rootTs || 0}:${root?.body || ""}:${root?.format || ""}:${root?.formattedBody || ""}:${group.rootRedacted ? "root-redacted" : ""}:${reactionSignatureForThreadItem(root)}:${replies}`;
+        const rootSignature = root
+          ? threadItemRenderSignatureWithSource(root, eventElements)
+          : [
+            group.rootEventId,
+            group.rootTs || 0,
+            group.rootBody || "",
+            group.rootRedacted ? "root-redacted" : "",
+            reactionSignatureForThreadItem(root)
+          ].join(":");
+
+        return `${group.rootEventId}:${rootSignature}:${replies}`;
       })
       .sort()
       .join("|");
 
     return `${timelineEntries}###${threadEntries}`;
+  }
+
+  function threadItemRenderSignatureWithSource(item, eventElements) {
+    const source = item?.eventId ? eventElements.get(item.eventId) : null;
+    const image = isThreadImageItem(item) ? findThreadGallerySourceImage(item, source) : null;
+
+    return [
+      threadItemRenderSignature(item),
+      renderedImageSrc(image),
+      renderedImageFullSrc(image)
+    ].join(":");
+  }
+
+  function threadItemRenderSignature(item) {
+    if (!item) return "";
+
+    const media = item.media || {};
+    const gallery = item.gallery || {};
+
+    return [
+      item.eventId || "",
+      item.ts || 0,
+      item.body || "",
+      item.msgtype || "",
+      item.format || "",
+      item.formattedBody || "",
+      item.redacted ? "redacted" : "",
+      reactionSignatureForThreadItem(item),
+      gallery.id || media.galleryId || "",
+      gallery.url || media.mxcUrl || "",
+      media.thumbnailUrl || "",
+      media.downloadUrl || ""
+    ].join(":");
   }
 
   function teardownMergedThreadView() {
@@ -3361,6 +3396,11 @@
     block.className = "mg-thread-merged";
     block.dataset.threadRootId = group.rootEventId;
 
+    const heading = document.createElement("div");
+    heading.className = "mg-thread-heading";
+    heading.dataset.i18n = "newThreadHeader";
+    heading.textContent = t("newThreadHeader");
+
     const messages = document.createElement("div");
     messages.className = "mg-thread-merged-messages";
 
@@ -3385,6 +3425,7 @@
 
     messages.append(...createThreadMessageRows(visibleItems, eventElements, group.rootEventId));
 
+    block.appendChild(heading);
     block.appendChild(messages);
 
     if (!isExpanded && split.hiddenReplies.length > 0) {
@@ -3613,21 +3654,26 @@
   function makeThreadGalleryImage(item, source = null) {
     const media = item?.media || {};
     const gallery = item?.gallery || {};
-    let src = media.thumbnailUrl || media.downloadUrl || gallery.downloadUrl || gallery.url || "";
-    let fullSrc = media.downloadUrl || media.thumbnailUrl || gallery.downloadUrl || gallery.url || src;
-    let sourceImage = null;
+    const sourceImage = findThreadGallerySourceImage(item, source);
+    const sourceSrc = renderedImageSrc(sourceImage);
+    const metadataSrc = firstBrowserImageUrl(
+      media.thumbnailUrl,
+      media.downloadUrl,
+      gallery.downloadUrl,
+      gallery.url
+    );
+    const src = sourceSrc || metadataSrc;
 
-    if (!src || String(src).startsWith("mxc://")) {
-      sourceImage = source ? findMainImage(source) : null;
-      src = sourceImage?.currentSrc || sourceImage?.src || sourceImage?.getAttribute("src") || "";
-      fullSrc = sourceImage?.dataset.fullSrc ||
-        sourceImage?.dataset.mxcUrl ||
-        sourceImage?.getAttribute("data-full-src") ||
-        sourceImage?.getAttribute("data-mxc-url") ||
-        src;
-    }
+    if (!src) return null;
 
-    if (!src || String(src).startsWith("mxc://")) return null;
+    const fullSrc = renderedImageFullSrc(sourceImage) ||
+      firstBrowserImageUrl(
+        media.downloadUrl,
+        media.thumbnailUrl,
+        gallery.downloadUrl,
+        gallery.url
+      ) ||
+      src;
 
     const img = sourceImage ? sourceImage.cloneNode(true) : document.createElement("img");
     img.removeAttribute("id");
@@ -3661,6 +3707,94 @@
     if (Number.isFinite(height) && height > 0) img.height = height;
 
     return img;
+  }
+
+  function findThreadGallerySourceImage(item, source = null) {
+    const direct = source ? findMainImage(source) : null;
+    if (direct) return direct;
+
+    return findRenderedGalleryImageForThreadItem(item);
+  }
+
+  function findRenderedGalleryImageForThreadItem(item) {
+    const eventId = item?.eventId || "";
+    const media = item?.media || {};
+    const gallery = item?.gallery || {};
+    const mxcUrl = media.mxcUrl || gallery.url || "";
+    const mxcPart = mxcServerPart(mxcUrl);
+    const images = Array.from(document.querySelectorAll(".mg-inline-gallery img"));
+
+    if (eventId) {
+      const byEvent = images.find(img =>
+        img.dataset.eventId === eventId &&
+        !img.closest(".mg-thread-merged, .mg-thread-inline-reply")
+      );
+      if (byEvent) return byEvent;
+    }
+
+    if (!mxcPart) return null;
+
+    return images.find(img => {
+      if (img.closest(".mg-thread-merged, .mg-thread-inline-reply")) return false;
+
+      const haystack = [
+        img.dataset.mxcUrl,
+        img.dataset.fullSrc,
+        img.getAttribute("data-mxc-url"),
+        img.getAttribute("data-full-src"),
+        img.currentSrc,
+        img.src
+      ].filter(Boolean).join(" ");
+
+      return haystack.includes(mxcPart) || haystack.includes(encodeURIComponent(mxcPart));
+    }) || null;
+  }
+
+  function renderedImageSrc(image) {
+    if (!(image instanceof HTMLImageElement)) return "";
+
+    return browserImageUrl(
+      image.currentSrc ||
+      image.src ||
+      image.getAttribute("src") ||
+      ""
+    );
+  }
+
+  function renderedImageFullSrc(image) {
+    if (!(image instanceof HTMLImageElement)) return "";
+
+    return firstBrowserImageUrl(
+      image.dataset.fullSrc,
+      image.getAttribute("data-full-src"),
+      image.currentSrc,
+      image.src,
+      image.getAttribute("src")
+    );
+  }
+
+  function firstBrowserImageUrl(...urls) {
+    for (const url of urls) {
+      const normalized = browserImageUrl(url);
+      if (normalized) return normalized;
+    }
+
+    return "";
+  }
+
+  function browserImageUrl(url) {
+    const value = String(url || "").trim();
+    if (!value || /^mxc:\/\//i.test(value)) return "";
+
+    if (/^(https?:|blob:|data:|filesystem:|chrome-extension:|moz-extension:)/i.test(value)) {
+      return value;
+    }
+
+    try {
+      return new URL(value, window.location.href).href;
+    } catch {
+      return "";
+    }
   }
 
   function createThreadMessageRow(item, messageElement, source, showSender, rootEventId = "") {

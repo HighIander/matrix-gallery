@@ -679,6 +679,15 @@ html[data-mg-language="en"] .mg-thread-inline-reply::after {
   pointer-events: auto !important;
 }
 
+.mg-thread-heading {
+  display: block !important;
+  margin: 0 44px 6px 50px !important;
+  color: #4b5563 !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+}
+
 .mg-thread-later-toggle:hover,
 .mg-thread-later-toggle:focus-visible {
   background: #f9fafb !important;
