@@ -784,7 +784,7 @@
     recentlyAddedFingerprints.clear();
     renderPreview();
 
-    document.getElementById("mg-text").value = "";
+    setNativeTextValue(document.getElementById("mg-text"), "");
     document.getElementById("mg-status").textContent = "";
     clearThreadReplyTarget();
 
@@ -1769,17 +1769,13 @@
       : "";
 
     if ("value" in element) {
-      element.value = "";
+      clearValueComposerText(element);
       if (threadRootId) threadDraftsByRootEventId.delete(threadRootId);
-      dispatchComposerInputEvents(element);
       return;
     }
 
-    element.focus();
-    element.textContent = "";
-    element.innerHTML = "";
+    clearContentEditableComposerText(element);
     if (threadRootId) threadDraftsByRootEventId.delete(threadRootId);
-    dispatchComposerInputEvents(element);
   }
 
   function findCurrentComposerElement() {
@@ -1791,11 +1787,104 @@
     return null;
   }
 
+  function clearContentEditableComposerText(element) {
+    if (!(element instanceof Element)) return;
+
+    try {
+      element.focus({ preventScroll: true });
+    } catch {
+      try {
+        element.focus();
+      } catch {}
+    }
+
+    const deletedByEditor = getEditableText(element).trim()
+      ? deleteEditableComposerContents(element)
+      : false;
+
+    if (getEditableText(element).trim()) {
+      element.textContent = "";
+      element.innerHTML = "";
+      dispatchComposerInputEvents(element);
+    } else if (!deletedByEditor) {
+      dispatchComposerInputEvents(element);
+    }
+  }
+
+  function deleteEditableComposerContents(element) {
+    if (!(element instanceof Element)) return false;
+
+    const selection = window.getSelection?.();
+    const range = document.createRange?.();
+    if (!selection || !range) return false;
+
+    try {
+      if (document.execCommand?.("selectAll") && document.execCommand?.("delete")) {
+        return true;
+      }
+
+      range.selectNodeContents(element);
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      return Boolean(document.execCommand?.("delete"));
+    } catch {
+      return false;
+    } finally {
+      try {
+        selection.removeAllRanges();
+      } catch {}
+    }
+  }
+
+  function clearValueComposerText(element) {
+    try {
+      element.focus({ preventScroll: true });
+    } catch {
+      try {
+        element.focus();
+      } catch {}
+    }
+
+    try {
+      if (typeof element.setSelectionRange === "function") {
+        element.setSelectionRange(0, String(element.value || "").length);
+      }
+      if (typeof element.setRangeText === "function") {
+        element.setRangeText("", 0, String(element.value || "").length, "end");
+      }
+    } catch {}
+
+    setNativeTextValue(element, "");
+    dispatchComposerInputEvents(element);
+  }
+
   function dispatchComposerInputEvents(element) {
-    for (const eventName of ["beforeinput", "input", "change", "keyup"]) {
+    try {
+      element.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
+    } catch {}
+
+    for (const eventName of ["change", "keyup"]) {
       try {
         element.dispatchEvent(new Event(eventName, { bubbles: true, cancelable: true }));
       } catch {}
+    }
+  }
+
+  function setNativeTextValue(element, value) {
+    if (!element || !("value" in element)) return;
+
+    const prototype = element instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : element instanceof HTMLInputElement
+        ? HTMLInputElement.prototype
+        : Object.getPrototypeOf(element);
+    const descriptor = Object.getOwnPropertyDescriptor(prototype, "value");
+
+    if (descriptor?.set) {
+      descriptor.set.call(element, value);
+    } else {
+      element.value = value;
     }
   }
 
@@ -2774,6 +2863,7 @@
     }
 
     buildStoredGalleryFallbacks();
+    rebuildNativeThreadAttachedGalleries();
     cleanupStaleInlineGalleryRenderPass(currentGalleryBuildPass);
     restoreGalleryScrollPositions(galleryScrollPositions);
   }
@@ -2981,11 +3071,23 @@
   function threadItemRenderSignatureWithSource(item, eventElements) {
     const source = item?.eventId ? eventElements.get(item.eventId) : null;
     const image = isThreadImageItem(item) ? findThreadGallerySourceImage(item, source) : null;
+    const attachedGallerySignature = attachedGalleryItemsForThreadItem(item, eventElements)
+      .map(attachedItem => {
+        const attachedSource = attachedItem?.eventId ? eventElements.get(attachedItem.eventId) : null;
+        const attachedImage = findThreadGallerySourceImage(attachedItem, attachedSource);
+        return [
+          threadItemRenderSignature(attachedItem),
+          renderedImageSrc(attachedImage),
+          renderedImageFullSrc(attachedImage)
+        ].join(":");
+      })
+      .join(",");
 
     return [
       threadItemRenderSignature(item),
       renderedImageSrc(image),
-      renderedImageFullSrc(image)
+      renderedImageFullSrc(image),
+      attachedGallerySignature
     ].join(":");
   }
 
@@ -3084,35 +3186,85 @@
         .sort((a, b) => (a.ts || 0) - (b.ts || 0));
       const replies = allReplies.filter(isRenderableThreadItem);
       const rootElement = eventElements.get(group.rootEventId);
+      const keepRootInOriginalGallery = shouldKeepThreadRootInOriginalGallery(group, rootElement);
 
       hideNonRenderableThreadSourceMessages(group, allReplies, eventElements, rootElement);
 
       if (replies.length === 0) continue;
 
       const firstReplyElement = replies.map(item => eventElements.get(item.eventId)).find(Boolean);
-      const anchor = rootElement || firstReplyElement;
+      let anchor = keepRootInOriginalGallery && firstReplyElement
+        ? firstReplyElement
+        : rootElement || firstReplyElement;
+      let parent = anchor ? findBestGalleryParent(anchor) : null;
+      let reference = null;
 
-      if (!anchor) continue;
+      if (keepRootInOriginalGallery) {
+        const placement = findChronologicalThreadReplyPlacement(replies, eventElements);
+        if (placement?.parent) {
+          parent = placement.parent;
+          reference = placement.reference || null;
+          anchor = placement.indentAnchor || anchor;
+        }
+      }
 
-      const parent = findBestGalleryParent(anchor);
-      if (!parent) continue;
+      if (!anchor || !parent) continue;
 
-      const block = createMergedThreadBlock(group, replies, eventElements, rootElement);
-      const reference = findDirectChildForParent(anchor, parent);
-      applyMergedThreadIndent(block, rootElement || anchor, parent);
+      const block = createMergedThreadBlock(group, replies, eventElements, rootElement, {
+        keepRootInOriginalGallery
+      });
+      if (!reference) {
+        const anchorChild = findDirectChildForParent(anchor, parent);
+        reference = keepRootInOriginalGallery && rootElement && !firstReplyElement
+          ? anchorChild.nextSibling
+          : anchorChild;
+      }
+      applyMergedThreadIndent(block, keepRootInOriginalGallery ? anchor : rootElement || anchor, parent);
 
       parent.insertBefore(block, reference);
-      buildInlineThreadReplies(group, replies, eventElements);
+      buildInlineThreadReplies(group, replies, eventElements, {
+        skipFirstReplyRun: keepRootInOriginalGallery
+      });
 
-      if (rootElement) {
+      if (rootElement && !keepRootInOriginalGallery) {
         rootElement.classList.add("mg-thread-hidden-message");
       }
+
+      const rootMeta = threadMetadataByEventId.get(group.rootEventId);
+      hideAttachedGallerySourceMessages(rootMeta, eventElements);
 
       for (const item of allReplies) {
         const source = eventElements.get(item.eventId);
         if (source) {
           source.classList.add("mg-thread-hidden-message");
         }
+
+        hideAttachedGallerySourceMessages(item, eventElements);
+      }
+    }
+  }
+
+  function shouldKeepThreadRootInOriginalGallery(group, rootElement) {
+    if (!(rootElement instanceof Element) || group?.rootRedacted) return false;
+
+    const rootMeta = threadMetadataByEventId.get(group.rootEventId);
+    const sourceImage = findMainImage(rootElement);
+    const rootIsImage = isThreadImageItem(rootMeta) || Boolean(sourceImage);
+    if (!rootIsImage) return false;
+
+    if (rootMeta?.gallery?.id || rootMeta?.media?.galleryId) return true;
+
+    return Boolean(
+      extractGalleryIdFromElement(rootElement) ||
+      (sourceImage && extractGalleryIdFromImage(sourceImage))
+    );
+  }
+
+  function hideAttachedGallerySourceMessages(item, eventElements) {
+    for (const attachedItem of attachedGalleryItemsForThreadItem(item, eventElements)) {
+      const source = attachedItem?.eventId ? eventElements.get(attachedItem.eventId) : null;
+      if (source instanceof Element) {
+        source.classList.add("mg-thread-hidden-message");
       }
     }
   }
@@ -3132,7 +3284,7 @@
     }
   }
 
-  function buildInlineThreadReplies(group, replies, eventElements) {
+  function buildInlineThreadReplies(group, replies, eventElements, options = {}) {
     const rootMeta = threadMetadataByEventId.get(group.rootEventId) || {
       eventId: group.rootEventId,
       threadRootId: group.rootEventId,
@@ -3154,7 +3306,17 @@
       isRenderableThreadItem(rootMeta) ? rootMeta : null
     );
 
-    for (const run of separatedRuns) {
+    const firstReplyRunEventId = options.skipFirstReplyRun
+      ? replies
+        .filter(item => item?.eventId && isRenderableThreadItem(item))
+        .sort((a, b) => compareThreadItemsByTimeThenDom(a, b, eventElements))
+        .at(0)?.eventId || ""
+      : "";
+    const inlineRuns = firstReplyRunEventId
+      ? separatedRuns.filter(run => run?.[0]?.eventId !== firstReplyRunEventId)
+      : separatedRuns;
+
+    for (const run of inlineRuns) {
       const placement = findChronologicalThreadReplyPlacement(run, eventElements);
       if (!placement?.parent) continue;
 
@@ -3391,15 +3553,13 @@
     return block;
   }
 
-  function createMergedThreadBlock(group, replies, eventElements, rootElement = null) {
+  function createMergedThreadBlock(group, replies, eventElements, rootElement = null, options = {}) {
     const block = document.createElement("div");
     block.className = "mg-thread-merged";
     block.dataset.threadRootId = group.rootEventId;
 
     const heading = document.createElement("div");
     heading.className = "mg-thread-heading";
-    heading.dataset.i18n = "newThreadHeader";
-    heading.textContent = t("newThreadHeader");
 
     const messages = document.createElement("div");
     messages.className = "mg-thread-merged-messages";
@@ -3417,9 +3577,18 @@
       rootMeta.redacted = true;
     }
 
+    if (options.keepRootInOriginalGallery) {
+      heading.textContent = makeOriginalImageThreadHeading(rootMeta, rootElement, eventElements);
+    } else {
+      heading.dataset.i18n = "newThreadHeader";
+      heading.textContent = t("newThreadHeader");
+    }
+
     const rootItems = isRenderableThreadItem(rootMeta) ? [rootMeta] : [];
     const allItems = [...rootItems, ...replies.filter(isRenderableThreadItem)];
-    const split = splitMergedThreadBlockReplies(rootItems, replies, eventElements);
+    const split = splitMergedThreadBlockReplies(rootItems, replies, eventElements, {
+      ignoreInitialRootGap: Boolean(options.keepRootInOriginalGallery)
+    });
     const isExpanded = expandedMergedThreadRootEventIds.has(group.rootEventId);
     const visibleItems = isExpanded ? allItems : [...rootItems, ...split.visibleReplies];
 
@@ -3436,7 +3605,86 @@
     return block;
   }
 
-  function splitMergedThreadBlockReplies(rootItems, replies, eventElements) {
+  function makeOriginalImageThreadHeading(rootMeta, rootElement, eventElements) {
+    const text = summarizeOriginalMessageText(originalMessageContextText(rootMeta, eventElements));
+    const timestamp = numericTimestampForThreadItem(rootMeta, eventElements) ||
+      timestampFromElement(rootElement);
+    const dateTime = formatThreadHeadingTimestamp(timestamp);
+    const author = displayNameForThreadItem(rootMeta);
+    const context = dateTime ? `${dateTime} - ${author}` : author;
+
+    return `Reply to: ${text} | ${context}`;
+  }
+
+  function originalMessageContextText(rootMeta, eventElements) {
+    const galleryId = threadGalleryGroupId(rootMeta);
+    const textItem = galleryId ? threadGalleryTextItem(galleryId, rootMeta?.eventId || "") : null;
+    const textSource = textItem?.eventId ? eventElements?.get?.(textItem.eventId) : null;
+    const sourceText = textSource ? visibleMessageText(textSource) : "";
+
+    return sourceText ||
+      textItem?.body ||
+      textItem?.formattedBody ||
+      visibleMessageText(rootMeta?.eventId ? eventElements?.get?.(rootMeta.eventId) : null) ||
+      rootMeta?.body ||
+      rootMeta?.msgtype ||
+      t("threadStart");
+  }
+
+  function summarizeOriginalMessageText(value) {
+    const words = normalizeSpaces(stripHtmlText(value)).split(/\s+/).filter(Boolean);
+    if (words.length === 0) return t("threadStart");
+
+    const summary = words.slice(0, 10).join(" ");
+    return words.length > 10 ? `${summary}...` : summary;
+  }
+
+  function stripHtmlText(value) {
+    const text = String(value || "");
+    if (!text.includes("<")) return text;
+
+    const template = document.createElement("template");
+    template.innerHTML = text;
+    return template.content.textContent || text.replace(/<[^>]*>/g, " ");
+  }
+
+  function visibleMessageText(element) {
+    if (!(element instanceof Element)) return "";
+
+    const content = findThreadMessageContentSource(element) || element;
+    const clone = content.cloneNode(true);
+    pruneThreadMessageChrome(clone);
+
+    for (const hidden of clone.querySelectorAll([
+      ".mg-inline-gallery",
+      ".mg-gallery-placeholder",
+      ".mg-thread-merged",
+      ".mg-thread-inline-reply",
+      "img",
+      "svg",
+      "button"
+    ].join(", "))) {
+      hidden.remove();
+    }
+
+    return normalizeSpaces(clone.innerText || clone.textContent || "");
+  }
+
+  function formatThreadHeadingTimestamp(timestamp) {
+    const value = Number(timestamp || 0);
+    if (!Number.isFinite(value) || value <= 0) return "";
+
+    try {
+      return new Intl.DateTimeFormat(uiLanguage === "de" ? "de-DE" : "en-US", {
+        dateStyle: "short",
+        timeStyle: "short"
+      }).format(new Date(value));
+    } catch {
+      return new Date(value).toLocaleString();
+    }
+  }
+
+  function splitMergedThreadBlockReplies(rootItems, replies, eventElements, options = {}) {
     const replyItems = replies
       .filter(item => item?.eventId && isRenderableThreadItem(item))
       .sort((a, b) => compareThreadItemsByTimeThenDom(a, b, eventElements));
@@ -3444,6 +3692,9 @@
       .filter(item => item?.eventId)
       .sort((a, b) => compareThreadItemsByTimeThenDom(a, b, eventElements));
     const threadEventIds = new Set(threadItems.map(item => item.eventId));
+    const rootEventIds = new Set(rootItems.map(item => item?.eventId).filter(Boolean));
+    const firstReplyEventId = replyItems.at(0)?.eventId || "";
+    const ignoreInitialRootGap = Boolean(options.ignoreInitialRootGap);
     const hiddenReplyEventIds = new Set();
     let hideLaterReplies = false;
 
@@ -3451,12 +3702,18 @@
       const previousThreadItem = findPreviousThreadItem(reply, threadItems);
 
       if (!hideLaterReplies && previousThreadItem) {
-        hideLaterReplies = hasVisibleNonThreadMessageBetweenThreadItems(
-          previousThreadItem,
-          reply,
-          eventElements,
-          threadEventIds
-        );
+        const isInitialRootGap = ignoreInitialRootGap &&
+          reply.eventId === firstReplyEventId &&
+          rootEventIds.has(previousThreadItem.eventId);
+
+        if (!isInitialRootGap) {
+          hideLaterReplies = hasVisibleNonThreadMessageBetweenThreadItems(
+            previousThreadItem,
+            reply,
+            eventElements,
+            threadEventIds
+          );
+        }
       }
 
       if (hideLaterReplies) {
@@ -3526,10 +3783,12 @@
   function createThreadMessageRows(items, eventElements, rootEventId = "") {
     const rows = [];
     let previousSender = null;
+    const consumedEventIds = new Set();
 
     for (let index = 0; index < items.length; index += 1) {
       const item = items[index];
       if (!isRenderableThreadItem(item)) continue;
+      if (item.eventId && consumedEventIds.has(item.eventId)) continue;
 
       const galleryId = threadGalleryGroupId(item);
 
@@ -3546,6 +3805,7 @@
           nextIndex += 1;
         }
 
+        const galleryItems = sortThreadGalleryItems(grouped, eventElements);
         const senderKey = item.sender || item.senderName || "";
         const showSender = Boolean(senderKey) && senderKey !== previousSender;
         const source = grouped.map(entry => eventElements.get(entry.eventId)).find(Boolean);
@@ -3553,11 +3813,15 @@
 
         rows.push(createThreadMessageRow(
           item,
-          createThreadGalleryMessage(grouped, galleryId, eventElements),
+          createThreadGalleryMessage(galleryItems, galleryId, eventElements),
           source,
           showSender,
           itemRootEventId
         ));
+
+        for (const galleryItem of galleryItems) {
+          if (galleryItem?.eventId) consumedEventIds.add(galleryItem.eventId);
+        }
 
         if (senderKey) {
           previousSender = senderKey;
@@ -3571,14 +3835,24 @@
       const showSender = Boolean(senderKey) && senderKey !== previousSender;
       const source = eventElements.get(item.eventId);
       const itemRootEventId = rootEventId || item.threadRootId || item.eventId || "";
+      const attachedGalleryItems = attachedGalleryItemsForThreadItem(item, eventElements);
 
       rows.push(createThreadMessageRow(
         item,
-        source ? cloneThreadMessage(source) : createThreadFallbackMessage(item),
+        createThreadMessageWithAttachedGallery(
+          item,
+          source ? cloneThreadMessage(source) : createThreadFallbackMessage(item),
+          attachedGalleryItems,
+          eventElements
+        ),
         source,
         showSender,
         itemRootEventId
       ));
+
+      for (const attachedItem of attachedGalleryItems) {
+        if (attachedItem?.eventId) consumedEventIds.add(attachedItem.eventId);
+      }
 
       if (senderKey) {
         previousSender = senderKey;
@@ -3613,6 +3887,112 @@
     if (String(mimeType).toLowerCase().startsWith("image/")) return true;
 
     return Boolean(item?.media?.downloadUrl && item?.media?.mxcUrl && String(item?.body || "").match(/\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i));
+  }
+
+  function createThreadMessageWithAttachedGallery(item, messageElement, attachedGalleryItems, eventElements) {
+    if (!Array.isArray(attachedGalleryItems) || attachedGalleryItems.length === 0) {
+      return messageElement;
+    }
+
+    const galleryId = attachedThreadGalleryId(item, eventElements);
+    const gallery = createThreadGalleryMessage(attachedGalleryItems, galleryId, eventElements);
+    if (!gallery?.matches?.(".mg-inline-gallery")) return messageElement;
+
+    const wrap = document.createElement("div");
+    wrap.className = "mg-thread-message-with-gallery";
+    wrap.appendChild(messageElement);
+    wrap.appendChild(gallery);
+
+    return wrap;
+  }
+
+  function attachedGalleryItemsForThreadItem(item, eventElements = null) {
+    if (!item || item.redacted || isThreadImageItem(item)) return [];
+
+    const galleryId = attachedThreadGalleryId(item, eventElements);
+    if (!galleryId) return [];
+
+    return expandedThreadGalleryItems([], galleryId, eventElements)
+      .filter(candidate => candidate.eventId !== item.eventId);
+  }
+
+  function attachedThreadGalleryId(item, eventElements = null) {
+    if (!item || isThreadImageItem(item)) return "";
+
+    const explicitId = item.gallery?.id || "";
+    if (explicitId) return explicitId;
+
+    const source = item.eventId ? eventElements?.get?.(item.eventId) : null;
+    return source ? extractGalleryIdFromElement(source) : "";
+  }
+
+  function sortThreadGalleryItems(items, eventElements = null) {
+    return [...items].sort((a, b) => {
+      const ai = Number(a?.gallery?.index);
+      const bi = Number(b?.gallery?.index);
+      const hasAi = Number.isFinite(ai);
+      const hasBi = Number.isFinite(bi);
+
+      if (hasAi && hasBi && ai !== bi) return ai - bi;
+      if (hasAi && !hasBi) return -1;
+      if (!hasAi && hasBi) return 1;
+
+      const at = numericTimestampForThreadItem(a, eventElements || new Map());
+      const bt = numericTimestampForThreadItem(b, eventElements || new Map());
+      if (at && bt && at !== bt) return at - bt;
+
+      return String(a?.eventId || "").localeCompare(String(b?.eventId || ""));
+    });
+  }
+
+  function expandedThreadGalleryItems(items, galleryId, eventElements = null) {
+    const byEventId = new Map();
+
+    const add = item => {
+      if (!item?.eventId || item.redacted || !isThreadImageItem(item)) return;
+      if (threadGalleryGroupId(item) !== galleryId) return;
+      byEventId.set(item.eventId, item);
+    };
+
+    for (const item of items || []) add(item);
+    for (const item of threadMetadataByEventId.values()) add(item);
+
+    return sortThreadGalleryItems(Array.from(byEventId.values()), eventElements);
+  }
+
+  function threadGalleryTextItem(galleryId, excludeEventId = "") {
+    if (!galleryId) return null;
+
+    return Array.from(threadMetadataByEventId.values())
+      .filter(item => (
+        item?.eventId &&
+        item.eventId !== excludeEventId &&
+        !item.redacted &&
+        !isThreadImageItem(item) &&
+        item.gallery?.id === galleryId &&
+        isRenderableThreadItem(item)
+      ))
+      .sort((a, b) => (a.ts || 0) - (b.ts || 0))
+      .at(0) || null;
+  }
+
+  function createThreadGalleryMessageWithText(textItem, galleryElement, eventElements = null) {
+    const hasGallery = galleryElement?.matches?.(".mg-inline-gallery");
+    if (!textItem || !isRenderableThreadItem(textItem)) {
+      return hasGallery ? galleryElement : document.createDocumentFragment();
+    }
+
+    const textSource = textItem.eventId ? eventElements?.get?.(textItem.eventId) : null;
+    const textElement = textSource ? cloneThreadMessage(textSource) : createThreadTextFallbackMessage(textItem);
+
+    if (!hasGallery) return textElement;
+
+    const wrap = document.createElement("div");
+    wrap.className = "mg-thread-message-with-gallery";
+    wrap.appendChild(textElement);
+    wrap.appendChild(galleryElement);
+
+    return wrap;
   }
 
   function createThreadGalleryMessage(items, galleryId, eventElements = null) {
@@ -3727,7 +4107,7 @@
     if (eventId) {
       const byEvent = images.find(img =>
         img.dataset.eventId === eventId &&
-        !img.closest(".mg-thread-merged, .mg-thread-inline-reply")
+        !img.closest(".mg-native-thread-attached-gallery")
       );
       if (byEvent) return byEvent;
     }
@@ -3735,7 +4115,7 @@
     if (!mxcPart) return null;
 
     return images.find(img => {
-      if (img.closest(".mg-thread-merged, .mg-thread-inline-reply")) return false;
+      if (img.closest(".mg-native-thread-attached-gallery")) return false;
 
       const haystack = [
         img.dataset.mxcUrl,
@@ -3960,10 +4340,18 @@
   }
 
   function cloneThreadMessage(source) {
+    const sourceEventId = eventIdForElement(source);
     const contentSource = findThreadMessageContentSource(source) || source;
     const clone = contentSource.cloneNode(true);
     clone.classList.remove("mg-thread-hidden-message", "mg-thread-clickable-message");
     clone.classList.add("mg-thread-message-clone");
+
+    for (const nested of clone.querySelectorAll("[data-event-id]")) {
+      const nestedEventId = nested.getAttribute("data-event-id") || "";
+      if (sourceEventId && nestedEventId && nestedEventId !== sourceEventId) {
+        nested.remove();
+      }
+    }
 
     for (const element of clone.querySelectorAll("[id]")) {
       element.removeAttribute("id");
@@ -4031,6 +4419,12 @@
   function findThreadAvatarImage(source) {
     if (!source) return null;
 
+    const roots = [
+      source,
+      source.closest?.(".mx_EventTile"),
+      source.closest?.("li"),
+      source.closest?.('[role="listitem"]')
+    ].filter((root, index, array) => root instanceof Element && array.indexOf(root) === index);
     const selectors = [
       ".mx_EventTile_avatar img",
       "[data-testid='avatar-img']",
@@ -4039,9 +4433,11 @@
       "[class*='avatar'] img"
     ];
 
-    for (const selector of selectors) {
-      const image = source.querySelector(selector);
-      if (image?.src || image?.currentSrc) return image;
+    for (const root of roots) {
+      for (const selector of selectors) {
+        const image = root.querySelector(selector);
+        if (image?.src || image?.currentSrc) return image;
+      }
     }
 
     return null;
@@ -5150,7 +5546,8 @@
     const status = document.getElementById("mg-thread-side-status");
     const eventId = result?.eventId || result?.event_id || "";
 
-    source.textElement.value = "";
+    setNativeTextValue(source.textElement, "");
+    dispatchComposerInputEvents(source.textElement);
     threadDraftsByRootEventId.delete(source.threadTarget.rootEventId);
 
     currentThreadPanelTarget = {
@@ -5290,7 +5687,7 @@
     const result = [];
 
     for (const container of containers) {
-      if (container.closest("#mg-panel") || container.closest("#mg-thread-side-panel") || container.closest(".mg-lightbox") || container.closest(".mg-inline-gallery") || container.closest(".mg-thread-merged") || container.closest(".mg-thread-inline-reply")) continue;
+      if (container.closest("#mg-panel") || container.closest("#mg-thread-side-panel") || container.closest(".mg-lightbox") || container.closest(".mg-inline-gallery") || container.closest(".mg-thread-merged") || container.closest(".mg-thread-inline-reply") || container.closest(NATIVE_THREAD_PANEL_SELECTOR)) continue;
 
       const message = findMessageContainer(container);
       if (!message) continue;
@@ -5549,6 +5946,103 @@
 
       buildInlineGallery(anchor, scoped, galleryData.id);
     }
+  }
+
+  function rebuildNativeThreadAttachedGalleries() {
+    for (const gallery of document.querySelectorAll(".mg-native-thread-attached-gallery")) {
+      gallery.remove();
+    }
+
+    for (const panel of collectNativeThreadPanels()) {
+      const eventElements = collectNativeThreadPanelEventElements(panel);
+      const entries = Array.from(eventElements.entries())
+        .map(([eventId, message]) => {
+          const item = threadMetadataByEventId.get(eventId);
+          if (!item || item.redacted) return null;
+
+          const isImage = isThreadImageItem(item);
+          const galleryId = isImage
+            ? threadGalleryGroupId(item)
+            : attachedThreadGalleryId(item, eventElements);
+
+          return galleryId ? { eventId, message, item, isImage, galleryId } : null;
+        })
+        .filter(Boolean);
+      const handledGalleryIds = new Set();
+      const orderedEntries = [
+        ...entries.filter(entry => !entry.isImage),
+        ...entries.filter(entry => entry.isImage)
+      ];
+
+      for (const entry of orderedEntries) {
+        if (handledGalleryIds.has(entry.galleryId)) continue;
+
+        const attachedItems = entry.isImage
+          ? (findMainImage(entry.message) ? [] : [entry.item])
+          : attachedGalleryItemsForThreadItem(entry.item, eventElements)
+            .filter(item => !nativeThreadImageAlreadyRendered(item, eventElements));
+        if (attachedItems.length === 0) {
+          if (entry.isImage) handledGalleryIds.add(entry.galleryId);
+          continue;
+        }
+
+        const attachment = createThreadGalleryMessage(attachedItems, entry.galleryId, eventElements);
+        if (!attachment?.matches?.(".mg-inline-gallery")) continue;
+
+        handledGalleryIds.add(entry.galleryId);
+        attachment.classList.add("mg-native-thread-gallery", "mg-native-thread-attached-gallery");
+        attachment.dataset.mgNativeThreadAttachmentFor = entry.eventId;
+
+        const target = findNativeThreadAttachmentTarget(entry.message);
+        if (target?.parentElement) {
+          target.parentElement.insertBefore(attachment, target.nextSibling);
+        } else {
+          entry.message.appendChild(attachment);
+        }
+      }
+    }
+  }
+
+  function collectNativeThreadPanels() {
+    const candidates = Array.from(document.querySelectorAll(NATIVE_THREAD_PANEL_SELECTOR))
+      .filter(candidate => candidate instanceof Element && isVisibleElement(candidate));
+
+    return candidates.filter(candidate => (
+      !candidates.some(other => other !== candidate && candidate.contains(other))
+    ));
+  }
+
+  function nativeThreadImageAlreadyRendered(item, eventElements) {
+    const source = item?.eventId ? eventElements.get(item.eventId) : null;
+    return Boolean(source && findMainImage(source));
+  }
+
+  function collectNativeThreadPanelEventElements(panel) {
+    const result = new Map();
+
+    for (const element of panel.querySelectorAll("[data-event-id]")) {
+      if (!(element instanceof Element)) continue;
+      if (element.closest(".mg-inline-gallery, .mg-lightbox, #mg-panel, #mg-thread-side-panel")) continue;
+
+      const eventId = eventIdForElement(element);
+      if (!eventId || result.has(eventId)) continue;
+
+      const message = findMessageContainer(element);
+      if (!message || !panel.contains(message)) continue;
+
+      result.set(eventId, message);
+    }
+
+    return result;
+  }
+
+  function findNativeThreadAttachmentTarget(message) {
+    const content = findThreadMessageContentSource(message);
+    if (content instanceof Element && !content.closest(".mg-inline-gallery")) {
+      return content;
+    }
+
+    return message;
   }
 
   function buildInlineGallery(anchor, imageItems, galleryId) {

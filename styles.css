@@ -391,6 +391,10 @@ html:not(.mg-global-dragover) #mg-global-drop-hint {
   min-height: 176px !important;
 }
 
+.mg-native-thread-attached-gallery {
+  margin-top: 6px !important;
+}
+
 .mg-native-thread-gallery .mg-gallery-item,
 #mg-thread-side-panel .mg-thread-media-gallery .mg-gallery-item {
   height: 160px !important;
@@ -780,6 +784,16 @@ html[data-mg-language="en"] .mg-thread-inline-reply::after {
 
 .mg-thread-message-body {
   display: block !important;
+}
+
+.mg-thread-message-with-gallery {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+
+.mg-thread-message-with-gallery > .mg-inline-gallery {
+  margin-top: 2px !important;
 }
 
 .mg-thread-message-reactions {
