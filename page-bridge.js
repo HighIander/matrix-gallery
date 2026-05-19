@@ -1070,6 +1070,7 @@
           rootBody: "",
           rootSender: "",
           rootSenderName: "",
+          rootAvatarUrl: "",
           rootTs: 0,
           rootRedacted: false,
           latestEventId: "",
@@ -1090,6 +1091,7 @@
           group.rootBody = root.body || "";
           group.rootSender = root.sender || "";
           group.rootSenderName = root.senderName || "";
+          group.rootAvatarUrl = root.avatarUrl || "";
           group.rootTs = root.ts || 0;
         }
       }
@@ -1205,6 +1207,17 @@
     };
   }
 
+  function matrixThreadFallbackFlag(...sources) {
+    for (const source of sources) {
+      if (!source || typeof source !== "object") continue;
+
+      if (source.is_falling_back === true || source["im.vector.is_falling_back"] === true || source.isFallingBack === true || source.isFallback === true) return true;
+      if (source.is_falling_back === false || source["im.vector.is_falling_back"] === false || source.isFallingBack === false || source.isFallback === false) return false;
+    }
+
+    return null;
+  }
+
   function summarizeThreadEvent(event, room, client) {
     try {
       const eventId = event.getId?.() || event.event?.event_id || event.event_id || "";
@@ -1223,6 +1236,8 @@
 
       const content = event.getEffectiveContent?.() || rawContent["m.new_content"] || rawContent;
       const relatesTo = content["m.relates_to"] || rawRelatesTo || {};
+      const relationType = relatesTo.rel_type || relation.rel_type || "";
+      const isThreadRelation = relationType === "m.thread";
       const thread = event.getThread?.() || event.thread || null;
       const threadRootEvent = thread?.rootEvent || thread?.getRootEvent?.();
 
@@ -1247,20 +1262,38 @@
         relation["m.in_reply_to"]?.event_id ||
         "";
 
+      /*
+       * Matrix thread messages use m.in_reply_to in two different ways:
+       *   - is_falling_back=true: compatibility fallback for clients without thread support.
+       *   - is_falling_back=false: a genuine rich reply inside the thread.
+       * The reply target can legitimately be the thread root. Therefore the root event id
+       * must not be used as a heuristic for suppressing the reply preview.
+       */
+      const threadFallbackFlag = matrixThreadFallbackFlag(relatesTo, relation, rawRelatesTo);
+      const isThreadFallbackReply = Boolean(isThreadRelation && replyToEventId && threadFallbackFlag === true);
+      const isMatrixReply = Boolean(replyToEventId && !isThreadFallbackReply);
+      const matrixReplyToEventId = isMatrixReply ? replyToEventId : "";
+
       const sender = event.getSender?.() || event.event?.sender || event.sender || "";
 
       return {
         eventId,
         sender,
         senderName: displayNameForSender(sender, event, room, client),
+        avatarUrl: avatarUrlForSender(sender, event, room, client),
         ts: event.getTs?.() || event.event?.origin_server_ts || event.origin_server_ts || 0,
         msgtype: content.msgtype || "",
         format: content.format || "",
-        formattedBody: typeof content.formatted_body === "string" ? content.formatted_body : "",
+        formattedBody: typeof content.formatted_body === "string" ? stripMatrixHtmlReplyFallback(content.formatted_body) : "",
         body: plainEventBody(content),
+        replyPreview: summarizeEmbeddedReplyPreview(content, matrixReplyToEventId),
         redacted,
         reactions: summarizeAggregatedEventReactions(event),
         threadRootId,
+        relationType,
+        isThreadRelation,
+        isMatrixReply,
+        matrixReplyToEventId,
         replyToEventId,
         gallery: content["de.tkluge.gallery"] || null,
         media: redacted ? null : summarizeEventMedia(content)
@@ -1468,6 +1501,71 @@
     return shortenMatrixUserId(sender);
   }
 
+  function avatarUrlForSender(sender, event, room, client) {
+    const member = room?.getMember?.(sender) || null;
+    const user = client?.getUser?.(sender) || null;
+    const baseUrl =
+      safeCall(client, "getHomeserverUrl") ||
+      client?.baseUrl ||
+      client?.opts?.baseUrl ||
+      client?.clientOpts?.baseUrl ||
+      window.location.origin;
+
+    const candidates = [];
+
+    const addCandidate = value => {
+      if (typeof value === "string" && value.trim()) {
+        candidates.push(value.trim());
+      }
+    };
+
+    try {
+      addCandidate(member?.getAvatarUrl?.(baseUrl, 36, 36, "crop", false, true));
+      addCandidate(member?.getAvatarUrl?.(baseUrl, 36, 36, "crop"));
+    } catch {}
+
+    try {
+      addCandidate(user?.getAvatarUrl?.(baseUrl, 36, 36, "crop", false, true));
+      addCandidate(user?.getAvatarUrl?.(baseUrl, 36, 36, "crop"));
+    } catch {}
+
+    try {
+      addCandidate(event.sender?.getAvatarUrl?.(baseUrl, 36, 36, "crop", false, true));
+      addCandidate(event.sender?.getAvatarUrl?.(baseUrl, 36, 36, "crop"));
+    } catch {}
+
+    addCandidate(member?.avatarUrl);
+    addCandidate(member?.avatar_url);
+    addCandidate(member?.events?.member?.getContent?.()?.avatar_url);
+    addCandidate(member?.events?.member?.event?.content?.avatar_url);
+    addCandidate(user?.avatarUrl);
+    addCandidate(user?.avatar_url);
+    addCandidate(event.sender?.avatarUrl);
+    addCandidate(event.sender?.avatar_url);
+
+    for (const candidate of candidates) {
+      const url = matrixAvatarCandidateToHttpUrl(candidate);
+      if (url) return url;
+    }
+
+    return "";
+  }
+
+  function matrixAvatarCandidateToHttpUrl(value) {
+    const url = String(value || "").trim();
+    if (!url) return "";
+
+    if (/^mxc:\/\//i.test(url)) {
+      return makeContentDownloadUrl(url);
+    }
+
+    if (/^(https?:|blob:|data:)/i.test(url)) {
+      return url;
+    }
+
+    return "";
+  }
+
   function shortenMatrixUserId(userId) {
     const match = String(userId || "").match(/^@([^:]+):/);
     return match ? match[1] : String(userId || "");
@@ -1475,11 +1573,11 @@
 
   function plainEventBody(content) {
     if (typeof content.body === "string" && content.body.trim()) {
-      return content.body.trim();
+      return stripPlainMatrixReplyFallback(content.body).trim();
     }
 
     if (typeof content.formatted_body === "string" && content.formatted_body.trim()) {
-      return content.formatted_body
+      return stripMatrixHtmlReplyFallback(content.formatted_body)
         .replace(/<[^>]*>/g, " ")
         .replace(/\s+/g, " ")
         .trim();
@@ -1489,6 +1587,137 @@
     if (content.msgtype === "m.file") return content.body || "file";
 
     return "";
+  }
+
+  function summarizeEmbeddedReplyPreview(content, replyToEventId = "") {
+    const eventId = String(replyToEventId || "").trim();
+    if (!eventId) return null;
+
+    const fromHtml = summarizeHtmlReplyPreview(content?.formatted_body, eventId);
+    if (fromHtml) return fromHtml;
+
+    const fromPlain = summarizePlainReplyPreview(content?.body, eventId);
+    if (fromPlain) return fromPlain;
+
+    return { eventId, senderName: "", body: "" };
+  }
+
+  function summarizeHtmlReplyPreview(formattedBody, eventId) {
+    if (typeof formattedBody !== "string" || !formattedBody.trim()) return null;
+
+    const match = formattedBody.match(/<mx-reply[\s\S]*?<\/mx-reply>/i);
+    if (!match) return null;
+
+    try {
+      const template = document.createElement("template");
+      template.innerHTML = match[0];
+
+      const block = template.content.querySelector("blockquote") || template.content;
+      const links = Array.from(block.querySelectorAll("a"));
+      const senderLink = links.find(link => String(link.getAttribute("href") || "").includes("matrix.to/#/@")) || links.at(-1);
+      const senderName = normalizeBridgeSpaces(senderLink?.textContent || "");
+
+      const quoteBody = textAfterFirstBreak(block) || textWithoutReplyHeader(block);
+      const body = normalizeBridgeSpaces(quoteBody);
+
+      return body || senderName ? { eventId, senderName, body } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function textAfterFirstBreak(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ALL);
+    let afterBreak = false;
+    let parts = [];
+
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      if (node.nodeType === Node.ELEMENT_NODE && node.tagName?.toLowerCase() === "br") {
+        afterBreak = true;
+        continue;
+      }
+
+      if (!afterBreak || node.nodeType !== Node.TEXT_NODE) continue;
+      parts.push(node.textContent || "");
+    }
+
+    return parts.join(" ");
+  }
+
+  function textWithoutReplyHeader(root) {
+    const clone = root.cloneNode(true);
+    for (const element of clone.querySelectorAll("a, button, svg, img")) {
+      element.remove();
+    }
+
+    return normalizeBridgeSpaces(clone.textContent || "").replace(/^In reply to\s*/i, "").trim();
+  }
+
+  function summarizePlainReplyPreview(body, eventId) {
+    if (typeof body !== "string" || !body.trim()) return null;
+
+    const lines = body.replace(/\r\n/g, "\n").split("\n");
+    const quoted = [];
+
+    for (const line of lines) {
+      if (/^> ?/.test(line)) {
+        quoted.push(line.replace(/^> ?/, ""));
+        continue;
+      }
+
+      if (quoted.length && line.trim() === "") break;
+      if (quoted.length) break;
+    }
+
+    if (!quoted.length) return null;
+
+    let text = quoted.join("\n").trim();
+    let senderName = "";
+    const senderMatch = text.match(/^<([^>]+)>\s*/);
+    if (senderMatch) {
+      senderName = shortenMatrixUserId(senderMatch[1]);
+      text = text.slice(senderMatch[0].length).trim();
+    }
+
+    const bodyText = normalizeBridgeSpaces(text);
+    return bodyText || senderName ? { eventId, senderName, body: bodyText } : null;
+  }
+
+  function normalizeBridgeSpaces(value) {
+    return String(value || "").replace(/\s+/g, " ").trim();
+  }
+
+  function stripMatrixHtmlReplyFallback(value) {
+    return String(value || "").replace(/<mx-reply[\s\S]*?<\/mx-reply>/gi, "").trim();
+  }
+
+  function stripPlainMatrixReplyFallback(value) {
+    const text = String(value || "").replace(/\r\n/g, "\n");
+    const lines = text.split("\n");
+    let index = 0;
+    let sawReplyFallback = false;
+
+    while (index < lines.length) {
+      const line = lines[index];
+      if (/^> ?/.test(line)) {
+        sawReplyFallback = true;
+        index += 1;
+        continue;
+      }
+
+      if (sawReplyFallback && line.trim() === "") {
+        index += 1;
+        break;
+      }
+
+      break;
+    }
+
+    if (!sawReplyFallback) return text;
+
+    const stripped = lines.slice(index).join("\n").trim();
+    return stripped || text.trim();
   }
 
   function makeContentDownloadUrl(mxcUrl) {

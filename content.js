@@ -45,6 +45,7 @@
       mergeThreadsLabel: "Threads im Hauptverlauf bündeln",
       settingsSave: "Speichern",
       threadReplyLabel: "Thread-Antwort",
+      replyTargetLabel: "Antwort auf",
       clearThreadTargetTitle: "Thread-Ziel entfernen",
       textMessageLabel: "Textnachricht",
       textPlaceholder: "Nachricht senden...",
@@ -115,6 +116,7 @@
       mergeThreadsLabel: "Merge threads in the main timeline",
       settingsSave: "Save",
       threadReplyLabel: "Thread reply",
+      replyTargetLabel: "Reply to",
       clearThreadTargetTitle: "Remove thread target",
       textMessageLabel: "Text message",
       textPlaceholder: "Send message...",
@@ -232,6 +234,16 @@
     ".mg-thread-inline-reply",
     ".mg-thread-merged",
     "#mg-thread-target"
+  ].join(", ");
+  const MATRIX_REPLY_PREVIEW_SELECTOR = [
+    "mx-reply",
+    ".mx_ReplyChain",
+    ".mx_ReplyTile",
+    ".mx_EventTile_reply",
+    "[class*='ReplyChain']",
+    "[class*='ReplyTile']",
+    "[class*='ReplyPreview']",
+    "[class*='EventTile_reply']"
   ].join(", ");
   const MESSAGE_CONTENT_SELECTOR = [
     ".mx_EventTile_body",
@@ -3275,6 +3287,11 @@
       item.format || "",
       item.formattedBody || "",
       item.redacted ? "redacted" : "",
+      item.avatarUrl || "",
+      item.isMatrixReply ? "matrix-reply" : "",
+      item.matrixReplyToEventId || "",
+      item.replyPreview?.senderName || "",
+      item.replyPreview?.body || "",
       reactionSignatureForThreadItem(item),
       gallery.id || media.galleryId || "",
       gallery.url || media.mxcUrl || "",
@@ -3460,6 +3477,7 @@
       threadRootId: group.rootEventId,
       sender: group.rootSender || "",
       senderName: group.rootSenderName || "",
+      avatarUrl: group.rootAvatarUrl || "",
       ts: group.rootTs || 0,
       body: group.rootBody || t("threadStart"),
       redacted: Boolean(group.rootRedacted)
@@ -3739,6 +3757,7 @@
       threadRootId: group.rootEventId,
       sender: group.rootSender || "",
       senderName: group.rootSenderName || "",
+      avatarUrl: group.rootAvatarUrl || "",
       ts: group.rootTs || 0,
       body: group.rootBody || t("threadStart"),
       redacted: Boolean(group.rootRedacted)
@@ -3986,7 +4005,8 @@
           createThreadGalleryMessage(galleryItems, galleryId, eventElements),
           source,
           showSender,
-          itemRootEventId
+          itemRootEventId,
+          eventElements
         ));
 
         for (const galleryItem of galleryItems) {
@@ -4011,13 +4031,14 @@
         item,
         createThreadMessageWithAttachedGallery(
           item,
-          source ? cloneThreadMessage(source) : createThreadFallbackMessage(item),
+          source ? cloneThreadMessage(source, item, itemRootEventId) : createThreadFallbackMessage(item),
           attachedGalleryItems,
           eventElements
         ),
         source,
         showSender,
-        itemRootEventId
+        itemRootEventId,
+        eventElements
       ));
 
       for (const attachedItem of attachedGalleryItems) {
@@ -4153,7 +4174,7 @@
     }
 
     const textSource = textItem.eventId ? eventElements?.get?.(textItem.eventId) : null;
-    const textElement = textSource ? cloneThreadMessage(textSource) : createThreadTextFallbackMessage(textItem);
+    const textElement = textSource ? cloneThreadMessage(textSource, textItem, textItem.threadRootId || "") : createThreadTextFallbackMessage(textItem);
 
     if (!hasGallery) return textElement;
 
@@ -4175,7 +4196,7 @@
       .find(Boolean);
 
     if (images.length === 0 && fallbackSource) {
-      const clone = cloneThreadMessage(fallbackSource);
+      const clone = cloneThreadMessage(fallbackSource, items[0], items[0]?.threadRootId || "");
       const image = clone.querySelector("img");
       if (image) return clone;
     }
@@ -4347,7 +4368,7 @@
     }
   }
 
-  function createThreadMessageRow(item, messageElement, source, showSender, rootEventId = "") {
+  function createThreadMessageRow(item, messageElement, source, showSender, rootEventId = "", eventElements = null) {
     const row = document.createElement("div");
     row.className = "mg-thread-message-row";
     if (item.eventId) {
@@ -4376,6 +4397,9 @@
     avatar.className = "mg-thread-message-avatar";
     if (showSender) {
       avatar.appendChild(cloneThreadAvatar(source, item));
+    } else {
+      row.classList.add("mg-thread-message-row-continuation");
+      avatar.setAttribute("aria-hidden", "true");
     }
     row.appendChild(avatar);
 
@@ -4387,6 +4411,11 @@
       sender.className = "mg-thread-message-sender";
       sender.textContent = displayNameForThreadItem(item);
       content.appendChild(sender);
+    }
+
+    const replyTarget = createThreadReplyTargetPreview(item, source, rootEventId, eventElements);
+    if (replyTarget) {
+      content.appendChild(replyTarget);
     }
 
     const body = document.createElement("div");
@@ -4402,6 +4431,153 @@
     row.appendChild(content);
 
     return row;
+  }
+
+  function createThreadReplyTargetPreview(item, source, rootEventId = "", eventElements = null) {
+    const summary = threadReplyTargetSummary(item, source, rootEventId, eventElements);
+    if (!summary) return null;
+
+    const block = document.createElement("div");
+    block.className = "mg-thread-reply-target";
+    if (summary.eventId) {
+      block.dataset.replyToEventId = summary.eventId;
+    }
+    block.title = summary.fullText || summary.text;
+
+    const label = document.createElement("div");
+    label.className = "mg-thread-reply-target-label";
+    label.textContent = summary.senderName
+      ? `${t("replyTargetLabel")} ${summary.senderName}`
+      : t("replyTargetLabel");
+    block.appendChild(label);
+
+    const text = document.createElement("div");
+    text.className = "mg-thread-reply-target-text";
+    text.textContent = summary.text;
+    block.appendChild(text);
+
+    block.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const target = summary.eventId
+        ? document.querySelector(`[data-event-id="${cssEscape(summary.eventId)}"]`)
+        : null;
+      if (target) {
+        target.scrollIntoView({ block: "center", behavior: "smooth" });
+        return;
+      }
+
+      if (rootEventId) {
+        openNativeThreadView(rootEventId, summary.eventId || rootEventId);
+      }
+    });
+
+    return block;
+  }
+
+  function matrixReplyTargetEventId(item, source = null) {
+    const explicit = String(item?.matrixReplyToEventId || "").trim();
+    if (explicit) return explicit;
+
+    if (item?.isMatrixReply === true) {
+      return String(item?.replyToEventId || item?.replyPreview?.eventId || "").trim();
+    }
+
+    return "";
+  }
+
+  function threadReplyTargetSummary(item, source, rootEventId = "", eventElements = null) {
+    const replyToEventId = matrixReplyTargetEventId(item, source);
+    if (!replyToEventId || replyToEventId === item?.eventId) return null;
+
+    const targetItem = threadMetadataByEventId.get(replyToEventId) || null;
+    const targetSource = eventElements?.get?.(replyToEventId) || null;
+    const targetGroup = threadGroupsByRootEventId.get(replyToEventId) || null;
+    const preview = item?.replyPreview || {};
+
+    const senderName =
+      (targetItem ? displayNameForThreadItem(targetItem) : "") ||
+      normalizeSpaces(targetGroup?.rootSenderName || targetGroup?.rootSender || "") ||
+      normalizeSpaces(preview.senderName || preview.sender || "") ||
+      displayNameFromReplyPreviewDom(source);
+
+    const rawText =
+      textForThreadReplyTargetItem(targetItem, targetSource) ||
+      normalizeSpaces(targetGroup?.rootBody || "") ||
+      normalizeSpaces(preview.body || preview.text || "") ||
+      textFromReplyPreviewDom(source) ||
+      (replyToEventId === String(rootEventId || item?.threadRootId || "") ? t("threadStart") : t("threadMessage"));
+
+    const fullText = normalizeSpaces(stripPlainMatrixReplyFallbackText(stripHtmlText(rawText)));
+    if (!fullText) return null;
+
+    return {
+      eventId: replyToEventId,
+      senderName,
+      text: shortenThreadReplyTargetText(fullText),
+      fullText
+    };
+  }
+
+  function textForThreadReplyTargetItem(targetItem, targetSource = null) {
+    if (targetItem && !targetItem.redacted) {
+      if (isThreadImageItem(targetItem)) {
+        const caption = normalizeSpaces(targetItem.gallery?.caption || targetItem.media?.caption || "");
+        if (caption) return caption;
+
+        const filename = normalizeSpaces(targetItem.body || targetItem.media?.filename || "");
+        if (filename) return filename;
+
+        return targetItem.msgtype || "image";
+      }
+
+      const formattedBody = typeof targetItem.formattedBody === "string" ? targetItem.formattedBody : "";
+      const body = typeof targetItem.body === "string" ? targetItem.body : "";
+      const msgtype = typeof targetItem.msgtype === "string" ? targetItem.msgtype : "";
+      const text = normalizeSpaces(stripPlainMatrixReplyFallbackText(stripHtmlText(formattedBody || body || msgtype)));
+      if (text) return text;
+    }
+
+    if (targetSource) {
+      const text = visibleMessageText(targetSource);
+      if (text) return text;
+    }
+
+    return "";
+  }
+
+  function shortenThreadReplyTargetText(value) {
+    const text = normalizeSpaces(value);
+    if (text.length <= 160) return text;
+    return `${text.slice(0, 157).trimEnd()}...`;
+  }
+
+  function replyPreviewElementFromSource(source) {
+    if (!(source instanceof Element)) return null;
+    if (source.matches?.(MATRIX_REPLY_PREVIEW_SELECTOR)) return source;
+    return source.querySelector?.(MATRIX_REPLY_PREVIEW_SELECTOR) || null;
+  }
+
+  function displayNameFromReplyPreviewDom(source) {
+    const preview = replyPreviewElementFromSource(source);
+    if (!preview) return "";
+
+    const links = Array.from(preview.querySelectorAll("a"));
+    const senderLink = links.find(link => String(link.getAttribute("href") || "").includes("matrix.to/#/@")) || links.at(-1);
+    return normalizeSpaces(senderLink?.textContent || "");
+  }
+
+  function textFromReplyPreviewDom(source) {
+    const preview = replyPreviewElementFromSource(source);
+    if (!preview) return "";
+
+    const clone = preview.cloneNode(true);
+    for (const element of clone.querySelectorAll("a, button, svg, img")) {
+      element.remove();
+    }
+
+    return normalizeSpaces(clone.innerText || clone.textContent || "").replace(/^In reply to\s*/i, "").trim();
   }
 
   function createThreadReactionRow(item) {
@@ -4509,7 +4685,11 @@
     setTimeout(scheduleThreadViewRebuild, 3500);
   }
 
-  function cloneThreadMessage(source) {
+  function cloneThreadMessage(source, item = null, rootEventId = "") {
+    if (shouldRenderThreadItemFromMetadata(item, rootEventId)) {
+      return createThreadFallbackMessage(item);
+    }
+
     const sourceEventId = eventIdForElement(source);
     const contentSource = findThreadMessageContentSource(source) || source;
     const clone = contentSource.cloneNode(true);
@@ -4533,19 +4713,83 @@
       nested.remove();
     }
 
+    if (cloneLooksLikeReplyPreviewInsteadOfReplyBody(clone, item)) {
+      return createThreadFallbackMessage(item);
+    }
+
     return clone;
+  }
+
+  function shouldRenderThreadItemFromMetadata(item, rootEventId = "") {
+    if (!item || item.redacted || isThreadImageItem(item)) return false;
+
+    const replyToEventId = matrixReplyTargetEventId(item);
+    if (!replyToEventId) return false;
+
+    const root = String(rootEventId || item.threadRootId || "");
+    const isReplyToMessageInsideThread = Boolean(root && replyToEventId !== root);
+    if (!isReplyToMessageInsideThread) return false;
+
+    return Boolean(item.formattedBody || item.body || item.msgtype);
+  }
+
+  function cloneLooksLikeReplyPreviewInsteadOfReplyBody(clone, item) {
+    if (!clone || !item || !matrixReplyTargetEventId(item) || isThreadImageItem(item)) return false;
+
+    const expected = expectedReplyBodyTextForThreadItem(item);
+    if (!expected) return false;
+
+    const actual = normalizeSpaces(clone.innerText || clone.textContent || "");
+    if (!actual) return true;
+    if (actual.includes(expected)) return false;
+
+    const leadingExpected = expected.slice(0, Math.min(24, expected.length));
+    if (leadingExpected && actual.includes(leadingExpected)) return false;
+
+    return true;
+  }
+
+  function expectedReplyBodyTextForThreadItem(item) {
+    const formattedBody = typeof item?.formattedBody === "string" ? item.formattedBody : "";
+
+    if (formattedBody.trim()) {
+      const template = document.createElement("template");
+      template.innerHTML = formattedBody;
+      for (const reply of template.content.querySelectorAll("mx-reply")) {
+        reply.remove();
+      }
+      const text = normalizeSpaces(template.content.textContent || "");
+      if (text) return text;
+    }
+
+    return normalizeSpaces(stripPlainMatrixReplyFallbackText(item?.body || ""));
   }
 
   function findThreadMessageContentSource(source) {
     if (!source) return null;
 
-    return source.matches?.(MESSAGE_CONTENT_SELECTOR)
-      ? source
-      : source.querySelector?.(MESSAGE_CONTENT_SELECTOR) || null;
+    const candidates = [];
+    if (source.matches?.(MESSAGE_CONTENT_SELECTOR)) {
+      candidates.push(source);
+    }
+
+    if (source.querySelectorAll) {
+      candidates.push(...source.querySelectorAll(MESSAGE_CONTENT_SELECTOR));
+    }
+
+    return candidates.find(candidate => !isInsideMatrixReplyPreview(candidate, source)) || candidates[0] || null;
+  }
+
+  function isInsideMatrixReplyPreview(candidate, source) {
+    if (!(candidate instanceof Element) || !(source instanceof Element)) return false;
+
+    const preview = candidate.closest(MATRIX_REPLY_PREVIEW_SELECTOR);
+    return Boolean(preview && preview !== source && source.contains(preview));
   }
 
   function pruneThreadMessageChrome(clone) {
     const selectors = [
+      MATRIX_REPLY_PREVIEW_SELECTOR,
       ".mx_EventTile_avatar",
       ".mx_EventTile_sender",
       ".mx_SenderProfile",
@@ -4578,6 +4822,17 @@
       clone.className = "mg-thread-message-avatar-image";
       clone.removeAttribute("id");
       return clone;
+    }
+
+    const avatarUrl = browserImageUrl(item?.avatarUrl || "");
+    if (avatarUrl) {
+      const image = document.createElement("img");
+      image.className = "mg-thread-message-avatar-image";
+      image.src = avatarUrl;
+      image.alt = displayNameForThreadItem(item);
+      image.loading = "lazy";
+      image.decoding = "async";
+      return image;
     }
 
     const fallback = document.createElement("div");
@@ -4631,7 +4886,7 @@
     row.className = "mg-thread-message-fallback";
 
     const formattedBody = typeof item?.formattedBody === "string" ? item.formattedBody : "";
-    const bodyText = item?.body || item?.msgtype || t("threadMessage");
+    const bodyText = stripPlainMatrixReplyFallbackText(item?.body || item?.msgtype || t("threadMessage"));
 
     if ((item?.format === "org.matrix.custom.html" || formattedBody) && formattedBody.trim()) {
       const fragment = sanitizeMatrixHtmlFragment(formattedBody);
@@ -4654,6 +4909,34 @@
     }
 
     return sanitizeMatrixHtmlChildren(template.content);
+  }
+
+  function stripPlainMatrixReplyFallbackText(value) {
+    const text = String(value || "").replace(/\r\n/g, "\n");
+    const lines = text.split("\n");
+    let index = 0;
+    let sawReplyFallback = false;
+
+    while (index < lines.length) {
+      const line = lines[index];
+      if (/^> ?/.test(line)) {
+        sawReplyFallback = true;
+        index += 1;
+        continue;
+      }
+
+      if (sawReplyFallback && line.trim() === "") {
+        index += 1;
+        break;
+      }
+
+      break;
+    }
+
+    if (!sawReplyFallback) return text;
+
+    const stripped = lines.slice(index).join("\n").trim();
+    return stripped || text.trim();
   }
 
   function sanitizeMatrixHtmlChildren(parent) {
@@ -5386,6 +5669,7 @@
       threadRootId: rootEventId,
       sender: group?.rootSender || "",
       senderName: group?.rootSenderName || "",
+      avatarUrl: group?.rootAvatarUrl || "",
       ts: group?.rootTs || 0,
       body: group?.rootBody || t("threadStart"),
       redacted: Boolean(group?.rootRedacted)
