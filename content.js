@@ -4816,14 +4816,6 @@
   }
 
   function cloneThreadAvatar(source, item) {
-    const avatarImage = findThreadAvatarImage(source);
-    if (avatarImage) {
-      const clone = avatarImage.cloneNode(true);
-      clone.className = "mg-thread-message-avatar-image";
-      clone.removeAttribute("id");
-      return clone;
-    }
-
     const avatarUrl = browserImageUrl(item?.avatarUrl || "");
     if (avatarUrl) {
       const image = document.createElement("img");
@@ -4835,37 +4827,18 @@
       return image;
     }
 
+    /*
+     * Do not clone avatars from the surrounding Element DOM here. In compact
+     * thread summaries Element can place the root event and subsequent replies
+     * in the same DOM subtree, so a broad avatar query may pick the next
+     * message avatar for the thread starter. Metadata-derived avatar URLs are
+     * event-specific; if none is available, the sender initial is the only safe
+     * fallback.
+     */
     const fallback = document.createElement("div");
     fallback.className = "mg-thread-message-avatar-fallback";
     fallback.textContent = avatarInitial(displayNameForThreadItem(item));
     return fallback;
-  }
-
-  function findThreadAvatarImage(source) {
-    if (!source) return null;
-
-    const roots = [
-      source,
-      source.closest?.(".mx_EventTile"),
-      source.closest?.("li"),
-      source.closest?.('[role="listitem"]')
-    ].filter((root, index, array) => root instanceof Element && array.indexOf(root) === index);
-    const selectors = [
-      ".mx_EventTile_avatar img",
-      "[data-testid='avatar-img']",
-      "[data-testid*='avatar'] img",
-      "[class*='Avatar'] img",
-      "[class*='avatar'] img"
-    ];
-
-    for (const root of roots) {
-      for (const selector of selectors) {
-        const image = root.querySelector(selector);
-        if (image?.src || image?.currentSrc) return image;
-      }
-    }
-
-    return null;
   }
 
   function avatarInitial(name) {
